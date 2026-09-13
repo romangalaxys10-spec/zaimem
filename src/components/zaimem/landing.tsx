@@ -263,6 +263,51 @@ const FEATURES = [
   },
 ];
 
+/* ── everything-included brief: the full inventory, grouped ─────────── */
+
+const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
+  {
+    group: "Memory & context",
+    items: [
+      { name: "On-device vector memory", desc: "384-dim embeddings, cosine recall" },
+      { name: "Auto dedupe & merge", desc: "0.94 / 0.80 similarity thresholds" },
+      { name: "Context enhancer", desc: "ranked recall, silent injection" },
+      { name: "Token saver", desc: "LLM digest + extractive fallback" },
+      { name: "Token accounting", desc: "every saved token counted" },
+    ],
+  },
+  {
+    group: "Skills & sessions",
+    items: [
+      { name: "Smart-skill ledger", desc: "notes.md + tasks.json loop" },
+      { name: "Auto trigger detection", desc: "skills fire when they apply" },
+      { name: "Difficulty budgets", desc: "light 2 · medium 6 · deep 12" },
+      { name: "Handoff briefs", desc: "TRUST-clause protected summaries" },
+      { name: "Session timeline", desc: "full transcripts & summaries" },
+    ],
+  },
+  {
+    group: "Cloud & backup",
+    items: [
+      { name: "GitHub Cloud DB", desc: "your private repo mirrors everything" },
+      { name: "Scheduled daily backup", desc: "heartbeat snapshot ~every 24h" },
+      { name: "AES-256 export / import", desc: "encrypted, portable archives" },
+      { name: "Global search ⌘K", desc: "sessions, memories, ledger, skills" },
+      { name: "Kind & date filters", desc: "24h → 1 year, per category" },
+    ],
+  },
+  {
+    group: "Platform & privacy",
+    items: [
+      { name: "MCP server", desc: "12 tools · 3 resources · JSON-RPC 2.0" },
+      { name: "Batch calls & CORS", desc: "streamable HTTP transport" },
+      { name: "Prompt-injection guard", desc: "ledger is data, never instructions" },
+      { name: "Local vector engine", desc: "no external embedding APIs" },
+      { name: "Docker deploy", desc: "one command, GHCR image" },
+    ],
+  },
+];
+
 const STEPS = [
   { n: "01", title: "Open ZaiMem", body: "You're here. A private token is generated for you automatically — no email, no password." },
   { n: "02", title: "Add the MCP endpoint", body: "In chat.z.ai agent mode, add the ZaiMem MCP server with your endpoint URL + token." },
@@ -407,6 +452,7 @@ export function Landing({ onToken }: LandingProps) {
           </a>
           <div className="hidden items-center gap-7 text-[13px] text-zinc-400 md:flex">
             <a href="#features" className="transition-colors hover:text-white">Features</a>
+            <a href="#included" className="transition-colors hover:text-white">What's included</a>
             <a href="#how" className="transition-colors hover:text-white">How it works</a>
             <a href="https://github.com/romangalaxys10-spec/zaimem" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 transition-colors hover:text-white">
               <Github className="h-3.5 w-3.5" /> GitHub
@@ -489,6 +535,12 @@ export function Landing({ onToken }: LandingProps) {
               </div>
             </div>
             {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
+            <a
+              href="#included"
+              className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-violet-300 transition-colors hover:text-violet-200"
+            >
+              See everything included <ArrowRight className="h-3 w-3 rotate-90" aria-hidden />
+            </a>
           </motion.div>
 
           {/* project badges */}
@@ -560,6 +612,57 @@ export function Landing({ onToken }: LandingProps) {
               </motion.div>
             ))}
           </div>
+        </section>
+
+        {/* ── everything included ──────────────────────────────────────── */}
+        <section id="included" className="mx-auto max-w-5xl scroll-mt-20 px-4 pb-24 sm:px-6">
+          <motion.div {...reveal} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} className="mb-12 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">What&apos;s included</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.02em] sm:text-5xl">
+              Everything included. Nothing to wire.
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-zinc-400 sm:text-base">
+              One endpoint ships all of it. Every system below is live in the box — no plugins, no config, no extra keys.
+            </p>
+          </motion.div>
+
+          <motion.div
+            {...reveal}
+            transition={{ duration: 0.7, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+            className="rounded-[2rem] border border-white/[0.07] bg-white/[0.03] p-6 backdrop-blur-sm sm:p-10"
+          >
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              {INCLUDED.map((g) => (
+                <div key={g.group}>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{g.group}</h3>
+                  <ul className="mt-4 space-y-3.5">
+                    {g.items.map((it) => (
+                      <li key={it.name} className="flex items-start gap-2.5">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden />
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium leading-4 text-zinc-200">{it.name}</p>
+                          <p className="mt-0.5 text-xs leading-4 text-zinc-500">{it.desc}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <div className="mt-10 flex flex-col items-center gap-2 border-t border-white/[0.06] pt-6 text-center sm:flex-row sm:justify-between sm:text-left">
+              <p className="text-[13px] text-zinc-400">
+                All of it on one private token — and the full source is on GitHub, MIT-licensed.
+              </p>
+              <a
+                href="https://github.com/romangalaxys10-spec/zaimem"
+                target="_blank"
+                rel="noreferrer"
+                className="flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-violet-300 transition-colors hover:text-violet-200"
+              >
+                <Github className="h-3.5 w-3.5" /> Read the docs
+              </a>
+            </div>
+          </motion.div>
         </section>
 
         {/* ── how it works ─────────────────────────────────────────────── */}
