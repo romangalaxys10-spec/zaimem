@@ -14,6 +14,7 @@ import {
 import {
   MessageSquare, Database, Gauge, Zap, Search, Trash2, Loader2,
   FileText, Layers, Clock, TrendingUp, Activity, Download, Upload,
+  FileUp, CheckCircle2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -47,6 +48,7 @@ export interface MemoryItem {
   importance?: number;
   accessCount: number;
   sessionId: string | null;
+  source?: string | null;
   createdAt: string;
   updatedAt?: string;
   score?: number;
@@ -81,6 +83,7 @@ export const KIND_COLORS: Record<string, string> = {
   reflection: "bg-amber-500/15 text-amber-300 border-amber-500/30",
   workflow: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30",
   summary: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  document: "bg-lime-500/15 text-lime-300 border-lime-500/30",
 };
 
 export function KindBadge({ kind }: { kind: string }) {
@@ -256,7 +259,10 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
   const [mode, setMode] = useState<string>("recent");
   const [searching, setSearching] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [ingesting, setIngesting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const docRef = useRef<HTMLInputElement>(null);
 
   const loadRecent = async () => {
     try {
@@ -339,6 +345,37 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
     }
   }
 
+  async function uploadIngest(file: File) {
+    setIngesting(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/ingest", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `Ingest failed (${res.status})`);
+      const desc =
+        data.status === "unchanged"
+          ? `${data.chunks} chunks already in memory — nothing duplicated.`
+          : data.status === "replaced"
+            ? `Re-ingested: ${data.replacedOld} old chunk(s) replaced by ${data.memories} fresh ones.`
+            : `${data.chunks} chunk(s) embedded · ~${data.tokensEst.toLocaleString()} tokens · searchable now.`;
+      toast({
+        title: data.status === "unchanged" ? `${file.name} already in memory` : `${file.name} ingested`,
+        description: desc,
+      });
+      await loadRecent();
+      refreshToken();
+    } catch (e) {
+      toast({ title: "Ingest failed", description: e instanceof Error ? e.message : "Could not read this file", variant: "destructive" });
+    } finally {
+      setIngesting(false);
+    }
+  }
+
   return (
     <div>
       <div className="mb-4 flex gap-2">
@@ -381,7 +418,58 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
               e.target.value = "";
             }}
           />
+          <Button
+            size="sm" variant="outline" onClick={() => docRef.current?.click()} disabled={ingesting}
+            className="h-7 border-lime-500/30 bg-lime-500/10 px-2.5 text-[11px] text-lime-300 hover:bg-lime-500/20"
+          >
+            {ingesting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <FileUp className="mr-1 h-3 w-3" />} Upload doc
+          </Button>
+          <input
+            ref={docRef} type="file" className="hidden"
+            accept=".pdf,.docx,.txt,.md,.markdown,.csv,.json,.log,.html,.xml,.ts,.tsx,.js,.py,.go,.rs,.java,.sql,.yaml,.yml,application/pdf,text/*"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadIngest(f);
+              e.target.value = "";
+            }}
+          />
         </div>
+      </div>
+
+      {/* document drag-drop zone */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) uploadIngest(f);
+        }}
+        onClick={() => docRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && docRef.current?.click()}
+        aria-label="Upload a document to memory"
+        className={`mb-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-[11px] transition-colors ${
+          dragOver
+            ? "border-lime-400/60 bg-lime-500/15 text-lime-200"
+            : "border-white/10 bg-white/[0.02] text-zinc-500 hover:border-lime-500/30 hover:bg-lime-500/[0.06] hover:text-lime-300/90"
+        }`}>
+        {ingesting ? (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Chunking & embedding {"…"}
+          </>
+        ) : dragOver ? (
+          <>
+            <CheckCircle2 className="h-3.5 w-3.5" /> Drop to ingest — chunks get embedded into vector memory
+          </>
+        ) : (
+          <>
+            <FileUp className="h-3.5 w-3.5" />
+            <span>Drop a document here — <span className="text-zinc-400">PDF · DOCX · TXT · MD · CSV · code</span> — or click to browse. Chunks are embedded & deduped by content hash.</span>
+          </>
+        )}
       </div>
 
       {memories === null ? (
@@ -404,6 +492,11 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <KindBadge kind={m.kind} />
+                  {m.source && (
+                    <span className="flex items-center gap-1 font-mono text-[10px] text-lime-300/80">
+                      <FileText className="h-3 w-3" /> {m.source}
+                    </span>
+                  )}
                   {m.score !== undefined && <span className="text-[10px] text-emerald-400/80">score {m.score.toFixed(3)}</span>}
                   {m.keywords && <span className="hidden font-mono text-[10px] text-zinc-500 sm:inline">{m.keywords.split(",").slice(0, 4).join(" · ")}</span>}
                 </div>

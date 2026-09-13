@@ -16,10 +16,11 @@ export type MemoryKind =
   | "preference"
   | "reflection"
   | "workflow"
-  | "summary";
+  | "summary"
+  | "document";
 
 export const MEMORY_KINDS: MemoryKind[] = [
-  "fact", "decision", "preference", "reflection", "workflow", "summary",
+  "fact", "decision", "preference", "reflection", "workflow", "summary", "document",
 ];
 
 export function isMemoryKind(k: string): k is MemoryKind {
@@ -111,6 +112,7 @@ export interface RecallHit {
   content: string;
   score: number;
   sessionId: string | null;
+  source: string | null;
   createdAt: Date;
   accessCount: number;
 }
@@ -150,6 +152,7 @@ export async function recallMemories(opts: {
       const score = sim + recency + kwBonus + m.importance * 0.05;
       return {
         id: m.id, kind: m.kind, content: m.content, score, sessionId: m.sessionId,
+        source: m.source ?? null,
         createdAt: m.createdAt, accessCount: m.accessCount,
       };
     })

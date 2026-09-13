@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
         content: h.content,
         score: h.score,
         sessionId: h.sessionId,
+        source: h.source,
         accessCount: h.accessCount,
         createdAt: h.createdAt,
       })),
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
     take: Math.min(100, limit),
     select: {
       id: true, kind: true, content: true, keywords: true, importance: true,
-      accessCount: true, sessionId: true, createdAt: true, updatedAt: true,
+      accessCount: true, sessionId: true, source: true, createdAt: true, updatedAt: true,
     },
   });
   return NextResponse.json({ memories: rows, mode: "recent" });

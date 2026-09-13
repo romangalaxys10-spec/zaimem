@@ -274,6 +274,7 @@ const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
       { name: "Context enhancer", desc: "ranked recall, silent injection" },
       { name: "Token saver", desc: "LLM digest + extractive fallback" },
       { name: "Token accounting", desc: "every saved token counted" },
+      { name: "Document ingestion", desc: "PDF / DOCX / TXT → chunked vectors" },
     ],
   },
   {
@@ -299,7 +300,7 @@ const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
   {
     group: "Platform & privacy",
     items: [
-      { name: "MCP server", desc: "12 tools · 3 resources · JSON-RPC 2.0" },
+      { name: "MCP server", desc: "13 tools · 3 resources · JSON-RPC 2.0" },
       { name: "Batch calls & CORS", desc: "streamable HTTP transport" },
       { name: "Prompt-injection guard", desc: "ledger is data, never instructions" },
       { name: "Local vector engine", desc: "no external embedding APIs" },
@@ -723,7 +724,7 @@ export function Landing({ onToken }: LandingProps) {
       {/* footer */}
       <footer className="relative z-10 border-t border-white/[0.06] bg-black/30 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-4 py-6 text-xs text-zinc-400 sm:flex-row sm:px-6">
-          <span>ZaiMem v1.4 — session memory & context enhancer for chat.z.ai</span>
+          <span>ZaiMem v1.5 — session memory & context enhancer for chat.z.ai</span>
           <span className="flex items-center gap-1.5">
             Powered by <BrainCircuit className="h-3 w-3 text-violet-400" /> local vector engine · zcode-smart-skill port
           </span>

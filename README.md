@@ -45,7 +45,8 @@
 
 - **Automated private tokens** — no signup: visit the app, get a `zm_…` token instantly, log in with it.
 - **Magic prompt** — the dashboard generates a ready-to-paste activation prompt with your MCP endpoint and key embedded. Paste it into any chat.z.ai agent-mode chat and the session is wired to ZaiMem.
-- **MCP server** (JSON-RPC 2.0, streamable HTTP) — 12 tools, 3 resources, prompt templates, batch calls, session ids, CORS.
+- **MCP server** (JSON-RPC 2.0, streamable HTTP) — 13 tools, 3 resources, prompt templates, batch calls, session ids, CORS.
+- **Document ingestion** — `zaimem_ingest_file` MCP tool + dashboard drag-and-drop upload (PDF / DOCX / TXT / MD / CSV / code): text is auto-chunked into ~600-token overlapping pieces, every chunk is embedded as a `document` memory tagged with its source filename, and re-ingestion is idempotent (same content hash → no-op; changed file → chunks replaced). Recall hits cite `[doc:file.pdf · part i/N]`.
 - **Local vector memory** — 384-dim hashed word/bigram/char-4gram embeddings with cosine recall; auto-dedupe (0.94 duplicate / 0.80 merge thresholds), recency + keyword boosts, context-block assembly.
 - **Token saver** — LLM-powered digests (with extractive fallback) compress long context; token accounting per action.
 - **Smart skills** (zcode-smart-skill integration) — SKILL.md skill registry, auto trigger detection, difficulty budgets (E5: 2/6/12), ledger pages (`notes.md`, `tasks.json`) with size budgets, handoff brief with TRUST clause, reflection schema.

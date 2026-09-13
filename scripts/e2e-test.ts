@@ -72,12 +72,13 @@ async function main() {
 
   const tools = await rpc("tools/list", {}, token, 2, mcpSession);
   const toolNames: string[] = (tools.result?.tools ?? []).map((t: any) => t.name);
-  check("12 tools listed", toolNames.length === 12, toolNames);
+  check("13 tools listed", toolNames.length === 13, toolNames);
   check(
     "core tools present",
     ["zaimem_sync_session", "zaimem_remember", "zaimem_recall", "zaimem_enhance_context",
      "zaimem_save_tokens", "zaimem_detect_skill", "zaimem_list_skills", "zaimem_get_skill",
      "zaimem_ledger_write", "zaimem_ledger_read", "zaimem_session_summary", "zaimem_handoff_brief",
+     "zaimem_ingest_file",
     ].every((t) => toolNames.includes(t)),
   );
 
@@ -389,6 +390,82 @@ async function main() {
 
   const ghStatus2 = await (await fetch(`${BASE}/api/github`, { headers: h })).json();
   check("github status shape intact (schedule fields only when linked)", ghStatus2.linked === false && ghStatus2.link === null);
+
+  // ── 11. Document ingestion (file → chunk → embed → dedupe) ────
+  console.log("\n── 11. Document ingestion ────────────────────");
+  const mkDoc = `ing${Date.now().toString(36)}`;
+  const docText = (
+    `# ${mkDoc} Onboarding Handbook\n\n` +
+    Array.from({ length: 60 }, (_, i) =>
+      `Section ${i + 1}: the ${mkDoc} deployment pipeline rotates signing keys every Friday and archives audit logs to the vault.`,
+    ).join("\n\n")
+  );
+  const ingAuth = await fetch(`${BASE}/api/ingest`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: "handbook.md", text: docText }),
+  });
+  check("ingest requires auth", ingAuth.status === 401, ingAuth.status);
+
+  const ing1 = await (await fetch(`${BASE}/api/ingest`, {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ filename: "handbook.md", text: docText }),
+  })).json();
+  check(
+    "ingest chunks + embeds",
+    ing1.status === "ingested" && ing1.chunks >= 2 && ing1.memories === ing1.chunks,
+    ing1,
+  );
+
+  const ing2 = await (await fetch(`${BASE}/api/ingest`, {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ filename: "handbook.md", text: docText }),
+  })).json();
+  check("re-ingest same content is a no-op", ing2.status === "unchanged" && ing2.memories === 0, ing2);
+
+  const ing3 = await (await fetch(`${BASE}/api/ingest`, {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ filename: "handbook.md", text: docText + "\n\nAmendment: audits move to monthly cadence." }),
+  })).json();
+  check("changed file replaces old chunks", ing3.status === "replaced" && ing3.replacedOld === ing1.chunks && ing3.memories === ing3.chunks, ing3);
+
+  const emptyIng = await fetch(`${BASE}/api/ingest`, {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ filename: "empty.md", text: "   " }),
+  });
+  check("empty text rejected", emptyIng.status === 400, emptyIng.status);
+
+  const badType = await fetch(`${BASE}/api/ingest`, {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ filename: "legacy.doc", text: "plain text" }),
+  });
+  check("legacy .doc rejected with 415", badType.status === 415, badType.status);
+
+  // multipart upload path (same pipeline the drag & drop uses)
+  const fd = new FormData();
+  fd.append("file", new Blob([docText], { type: "text/markdown" }), `${mkDoc}-upload.md`);
+  const ingMp = await (await fetch(`${BASE}/api/ingest`, {
+    method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd,
+  })).json();
+  check("multipart upload ingests", ingMp.status === "ingested" && ingMp.chunks >= 1, ingMp);
+
+  const docSearch = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent(`${mkDoc} signing keys rotate`)}&kind=memories`, { headers: h })).json();
+  check(
+    "doc chunks searchable with source citation",
+    (docSearch.memories ?? []).some((m: any) => m.kind === "document" && (m.content ?? "").includes(`[doc:handbook.md · part`)),
+    docSearch.memories?.slice(0, 2),
+  );
+
+  const mcpIngest = await rpc("tools/call", {
+    name: "zaimem_ingest_file",
+    arguments: { filename: "mcp-probe.md", text: `MCP probe ${mkDoc}: the vault door code changes at dawn. ` + "filler ".repeat(400) },
+  }, token, 77, mcpSession);
+  const mcpIngestText: string = mcpIngest.result?.content?.[0]?.text ?? "";
+  check("MCP zaimem_ingest_file ingests", mcpIngestText.includes("ingested") && (mcpIngest.result?._meta?.chunks ?? 0) >= 1, mcpIngestText.slice(0, 160));
+  const mcpIngest2 = await rpc("tools/call", {
+    name: "zaimem_ingest_file",
+    arguments: { filename: "mcp-probe.md", text: `MCP probe ${mkDoc}: the vault door code changes at dawn. ` + "filler ".repeat(400) },
+  }, token, 78, mcpSession);
+  check("MCP re-ingest idempotent", (mcpIngest2.result?.content?.[0]?.text ?? "").includes("already ingested"), mcpIngest2.result?.content?.[0]?.text?.slice(0, 120));
 
   console.log(`\n${failures === 0 ? "🎉 ALL CHECKS PASSED" : `❌ ${failures} CHECK(S) FAILED`}`);
   process.exit(failures === 0 ? 0 : 1);

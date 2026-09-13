@@ -50,16 +50,19 @@ model Memory {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionId   String?
   session     Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  kind        String   @default("fact") // fact | decision | preference | reflection | workflow | summary
+  kind        String   @default("fact") // fact | decision | preference | reflection | workflow | summary | document
   content     String
   keywords    String? // comma-separated keywords
   embedding   String // JSON float[] — local hashed n-gram vector
   importance  Float    @default(0.5)
   accessCount Int      @default(0)
+  source      String? // source filename for document chunks (file ingestion)
+  docHash     String? // sha256[:16] of normalized doc text — idempotent re-ingest
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId, kind])
+  @@index([userId, source])
   @@index([sessionId])
 }
 
