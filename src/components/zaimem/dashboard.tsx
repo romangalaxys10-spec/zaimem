@@ -26,6 +26,16 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
+// tab trigger styling — readable inactive state (zinc-300) + clear active state
+const TAB_TRIGGER =
+  "gap-1.5 rounded-lg border border-transparent px-3 py-1.5 text-xs font-medium text-zinc-300 " +
+  "transition-colors hover:border-white/10 hover:bg-white/[0.06] hover:text-white " +
+  "data-[state=active]:border-violet-500/30 data-[state=active]:bg-violet-500/20 data-[state=active]:text-violet-100";
+const TAB_TRIGGER_CLOUD =
+  "gap-1.5 rounded-lg border border-transparent px-3 py-1.5 text-xs font-medium text-zinc-300 " +
+  "transition-colors hover:border-white/10 hover:bg-white/[0.06] hover:text-white " +
+  "data-[state=active]:border-emerald-500/30 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-100";
+
 export function Dashboard({ token, onLogout }: DashboardProps) {
   const [info, setInfo] = useState<AuthInfo | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -128,13 +138,13 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
             </code>
             <Button
               size="icon" variant="ghost" onClick={() => setRevealed((v) => !v)}
-              className="h-6 w-6 text-zinc-500 hover:text-zinc-200" aria-label="Toggle token visibility"
+              className="h-6 w-6 text-zinc-400 hover:text-zinc-200" aria-label="Toggle token visibility"
             >
               {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </Button>
             <Button
               size="icon" variant="ghost" onClick={() => copy(token, "token")}
-              className="h-6 w-6 text-zinc-500 hover:text-zinc-200" aria-label="Copy token"
+              className="h-6 w-6 text-zinc-400 hover:text-zinc-200" aria-label="Copy token"
             >
               {copied === "token" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
             </Button>
@@ -163,7 +173,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
                   <s.icon className={`h-5 w-5 ${s.color}`} />
                   <div>
                     <div className="text-xl font-bold leading-none text-zinc-100">{s.value}</div>
-                    <div className="mt-1 text-[11px] text-zinc-500">{s.label}</div>
+                    <div className="mt-1 text-[11px] text-zinc-400">{s.label}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -172,23 +182,23 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="mb-5 flex h-auto w-full flex-wrap gap-1 border border-white/5 bg-white/[0.03] p-1">
-            <TabsTrigger value="connect" className="data-[state=active]:bg-violet-600/20 data-[state=active]:text-violet-200">
+          <TabsList className="mb-5 flex h-auto w-full flex-wrap gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
+            <TabsTrigger value="connect" className={TAB_TRIGGER}>
               <Link2 className="mr-1 h-3.5 w-3.5" /> Connect
             </TabsTrigger>
-            <TabsTrigger value="sessions" className="data-[state=active]:bg-violet-600/20 data-[state=active]:text-violet-200">
+            <TabsTrigger value="sessions" className={TAB_TRIGGER}>
               <MessageSquare className="mr-1 h-3.5 w-3.5" /> Sessions
             </TabsTrigger>
-            <TabsTrigger value="memory" className="data-[state=active]:bg-violet-600/20 data-[state=active]:text-violet-200">
+            <TabsTrigger value="memory" className={TAB_TRIGGER}>
               <Database className="mr-1 h-3.5 w-3.5" /> Memory
             </TabsTrigger>
-            <TabsTrigger value="skills" className="data-[state=active]:bg-violet-600/20 data-[state=active]:text-violet-200">
+            <TabsTrigger value="skills" className={TAB_TRIGGER}>
               <Zap className="mr-1 h-3.5 w-3.5" /> Skills
             </TabsTrigger>
-            <TabsTrigger value="cloud" className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-200">
+            <TabsTrigger value="cloud" className={TAB_TRIGGER_CLOUD}>
               <Github className="mr-1 h-3.5 w-3.5" /> Cloud DB
             </TabsTrigger>
-            <TabsTrigger value="stats" className="data-[state=active]:bg-violet-600/20 data-[state=active]:text-violet-200">
+            <TabsTrigger value="stats" className={TAB_TRIGGER}>
               <Gauge className="mr-1 h-3.5 w-3.5" /> Stats
             </TabsTrigger>
           </TabsList>
@@ -203,7 +213,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-600/25 text-[10px] font-bold text-violet-300">{i + 1}</span>
                     <h3 className="text-sm font-semibold text-zinc-100">{s.title}</h3>
                   </div>
-                  <p className="text-[11px] leading-relaxed text-zinc-500">{s.body}</p>
+                  <p className="text-[11px] leading-relaxed text-zinc-400">{s.body}</p>
                 </div>
               ))}
             </div>
@@ -220,7 +230,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
                 <code className="block break-all rounded-lg border border-white/5 bg-black/40 px-3 py-2.5 font-mono text-xs text-emerald-300">
                   {endpoint}
                 </code>
-                <div className="mt-3 space-y-1.5 text-[11px] leading-relaxed text-zinc-500">
+                <div className="mt-3 space-y-1.5 text-[11px] leading-relaxed text-zinc-400">
                   <p><span className="font-semibold text-zinc-400">Auth header:</span> <code className="font-mono text-zinc-400">Authorization: Bearer {revealed ? token : token.slice(0, 7) + "…"}</code> — or append <code className="font-mono text-zinc-400">?token=…</code> if your client can&apos;t send headers.</p>
                   <p className="flex items-start gap-1.5"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" /> This token IS your memory space. Never paste it in public chats other than your own agent prompt.</p>
                 </div>
@@ -235,7 +245,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
                     <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
                       <BrainCircuit className="h-4 w-4 text-emerald-400" /> The Magic Prompt
                     </h3>
-                    <p className="mt-0.5 text-[11px] text-zinc-500">Paste this into a new chat.z.ai agent-mode chat. Endpoint + key are already embedded.</p>
+                    <p className="mt-0.5 text-[11px] text-zinc-400">Paste this into a new chat.z.ai agent-mode chat. Endpoint + key are already embedded.</p>
                   </div>
                   <div className="flex gap-2">
                     <CopyBtn text={magicPrompt} label="magic-prompt" />
@@ -259,7 +269,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
                 <pre className="overflow-x-auto rounded-lg border border-white/5 bg-black/40 p-4 font-mono text-[11px] leading-relaxed text-zinc-400">
                   {mcpJson}
                 </pre>
-                <p className="mt-2 text-[11px] text-zinc-600">For clients that accept an mcpServers JSON blob instead of URL + header fields.</p>
+                <p className="mt-2 text-[11px] text-zinc-500">For clients that accept an mcpServers JSON blob instead of URL + header fields.</p>
               </CardContent>
             </Card>
 
@@ -268,7 +278,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
               <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
                 <div>
                   <h3 className="text-sm font-semibold text-zinc-100">Verify the pipe</h3>
-                  <p className="mt-0.5 text-[11px] text-zinc-500">Run a one-shot JSON-RPC handshake against your MCP server (initialize → tools/list).</p>
+                  <p className="mt-0.5 text-[11px] text-zinc-400">Run a one-shot JSON-RPC handshake against your MCP server (initialize → tools/list).</p>
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -323,9 +333,9 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
       </main>
 
       <footer className="relative z-10 mt-auto border-t border-white/5 bg-black/30">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-[11px] text-zinc-600 sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-[11px] text-zinc-500 sm:px-6">
           <span>ZaiMem v1.2 — local vector engine · smart-skill port · streamable-http MCP · GitHub cloud DB · scheduled backup · global search</span>
-          <Badge variant="outline" className="border-white/10 text-[10px] text-zinc-500">token saver: auto-saved in this browser</Badge>
+          <Badge variant="outline" className="border-white/10 text-[10px] text-zinc-400">token saver: auto-saved in this browser</Badge>
         </div>
       </footer>
     </div>

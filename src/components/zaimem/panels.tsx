@@ -169,7 +169,7 @@ export function SessionsPanel({ token, refreshToken, focusSessionId, onFocusHand
   if (sessions.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <MessageSquare className="h-10 w-10 text-zinc-600" />
+        <MessageSquare className="h-10 w-10 text-zinc-500" />
         <p className="text-sm text-zinc-400">No synced sessions yet. Paste the magic prompt into chat.z.ai agent mode — sessions appear here automatically.</p>
       </div>
     );
@@ -184,13 +184,13 @@ export function SessionsPanel({ token, refreshToken, focusSessionId, onFocusHand
               <div className="flex items-start justify-between gap-2">
                 <button onClick={() => openDetail(s.id)} className="min-w-0 flex-1 text-left">
                   <h3 className="truncate font-semibold text-zinc-100 group-hover:text-violet-300">{s.title}</h3>
-                  <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{s.topic ?? "no topic recorded"}</p>
+                  <p className="mt-0.5 line-clamp-1 text-xs text-zinc-400">{s.topic ?? "no topic recorded"}</p>
                 </button>
                 <Badge variant="outline" className={`shrink-0 text-[10px] ${s.status === "summarized" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-violet-500/30 bg-violet-500/10 text-violet-300"}`}>
                   {s.status}
                 </Badge>
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-400">
                 <span className="flex items-center gap-1"><Database className="h-3 w-3" />{s.memories} memories</span>
                 <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{s.turns} turns</span>
                 {s.tokensSaved > 0 && <span className="flex items-center gap-1 text-amber-400/90"><Gauge className="h-3 w-3" />{fmtTokens(s.tokensSaved)} saved</span>}
@@ -213,7 +213,7 @@ export function SessionsPanel({ token, refreshToken, focusSessionId, onFocusHand
               <span className="truncate">{detail?.title}</span>
               {detail && <KindBadge kind={detail.status === "summarized" ? "summary" : "fact"} />}
             </DialogTitle>
-            <DialogDescription className="text-zinc-500">
+            <DialogDescription className="text-zinc-400">
               {detail?.topic} · {detail?.memories.length} memories · {detail?.ledgerPages.length} ledger pages
             </DialogDescription>
           </DialogHeader>
@@ -229,7 +229,7 @@ export function SessionsPanel({ token, refreshToken, focusSessionId, onFocusHand
                 <div key={m.id} className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
                   <div className="mb-1 flex items-center gap-2">
                     <KindBadge kind={m.kind} />
-                    <span className="text-[10px] text-zinc-600">×{m.accessCount} recalls</span>
+                    <span className="text-[10px] text-zinc-500">×{m.accessCount} recalls</span>
                   </div>
                   <p className="text-xs leading-relaxed text-zinc-300">{m.content}</p>
                 </div>
@@ -343,13 +343,13 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
     <div>
       <div className="mb-4 flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && search()}
             placeholder="Semantic vector search across all sessions…"
-            className="h-10 border-white/10 bg-white/5 pl-9 text-sm text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-violet-500/50"
+            className="h-10 border-white/10 bg-white/5 pl-9 text-sm text-zinc-200 placeholder:text-zinc-500 focus-visible:ring-violet-500/50"
           />
         </div>
         <Button onClick={search} disabled={searching} className="h-10 bg-violet-600 text-white hover:bg-violet-500">
@@ -357,7 +357,7 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
         </Button>
       </div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[11px] text-zinc-600">
+        <p className="text-[11px] text-zinc-500">
           {mode === "vector_search" ? "cosine-similarity ranked · recency + keyword boosts applied" : "most recently updated memories"}
         </p>
         <div className="flex shrink-0 gap-1.5">
@@ -388,7 +388,7 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-violet-400" /></div>
       ) : memories.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <Database className="h-10 w-10 text-zinc-600" />
+          <Database className="h-10 w-10 text-zinc-500" />
           <p className="text-sm text-zinc-400">{mode === "vector_search" ? "Nothing above the relevance threshold for this query." : "Memory space is empty. It fills up automatically as you chat with the enhanced agent."}</p>
         </div>
       ) : (
@@ -405,14 +405,14 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <KindBadge kind={m.kind} />
                   {m.score !== undefined && <span className="text-[10px] text-emerald-400/80">score {m.score.toFixed(3)}</span>}
-                  {m.keywords && <span className="hidden font-mono text-[10px] text-zinc-600 sm:inline">{m.keywords.split(",").slice(0, 4).join(" · ")}</span>}
+                  {m.keywords && <span className="hidden font-mono text-[10px] text-zinc-500 sm:inline">{m.keywords.split(",").slice(0, 4).join(" · ")}</span>}
                 </div>
                 <p className="text-xs leading-relaxed text-zinc-300">{m.content}</p>
               </div>
               <Button
                 size="icon" variant="ghost"
                 onClick={() => remove(m.id)}
-                className="h-7 w-7 shrink-0 text-zinc-600 opacity-0 transition-opacity hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100"
+                className="h-7 w-7 shrink-0 text-zinc-500 opacity-0 transition-opacity hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100"
                 aria-label="Delete memory"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -457,7 +457,7 @@ export function SkillsPanel({ token, refreshToken }: { token: string; refreshTok
 
   return (
     <div className="space-y-3">
-      <p className="text-xs leading-relaxed text-zinc-500">
+      <p className="text-xs leading-relaxed text-zinc-400">
         The skill registry follows the <span className="font-mono text-zinc-400">SKILL.md</span> convention ported from{" "}
         <a href="https://github.com/romangalaxys10-spec/zcode-smart-skill" target="_blank" rel="noreferrer" className="text-violet-400 underline-offset-2 hover:underline">zcode-smart-skill</a>.
         The agent auto-triggers these via <span className="font-mono text-zinc-400">zaimem_detect_skill</span> — trigger phrases live inside each description.
@@ -476,9 +476,9 @@ export function SkillsPanel({ token, refreshToken }: { token: string; refreshTok
                 <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">{s.description}</p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {s.triggers.slice(0, 8).map((t) => (
-                    <span key={t} className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500">&quot;{t}&quot;</span>
+                    <span key={t} className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">&quot;{t}&quot;</span>
                   ))}
-                  {s.triggers.length > 8 && <span className="text-[10px] text-zinc-600">+{s.triggers.length - 8} more</span>}
+                  {s.triggers.length > 8 && <span className="text-[10px] text-zinc-500">+{s.triggers.length - 8} more</span>}
                 </div>
               </div>
               <Switch checked={s.enabled} onCheckedChange={(v) => toggle(s.id, v)} aria-label={`Toggle ${s.name}`} />
@@ -523,21 +523,21 @@ export function StatsPanel({ token }: { token: string }) {
           <CardContent className="p-5 text-center">
             <Gauge className="mx-auto mb-2 h-5 w-5 text-amber-400" />
             <div className="text-3xl font-extrabold text-amber-300">{fmtTokens(stats.totals.tokensSaved)}</div>
-            <div className="mt-1 text-[11px] uppercase tracking-wider text-zinc-500">tokens saved</div>
+            <div className="mt-1 text-[11px] uppercase tracking-wider text-zinc-400">tokens saved</div>
           </CardContent>
         </Card>
         <Card className="border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-transparent">
           <CardContent className="p-5 text-center">
             <Activity className="mx-auto mb-2 h-5 w-5 text-violet-400" />
             <div className="text-3xl font-extrabold text-violet-300">{stats.totals.events}</div>
-            <div className="mt-1 text-[11px] uppercase tracking-wider text-zinc-500">enhancer events</div>
+            <div className="mt-1 text-[11px] uppercase tracking-wider text-zinc-400">enhancer events</div>
           </CardContent>
         </Card>
         <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-transparent">
           <CardContent className="p-5 text-center">
             <TrendingUp className="mx-auto mb-2 h-5 w-5 text-emerald-400" />
             <div className="text-3xl font-extrabold text-emerald-300">{fmtTokens(stats.totals.tokensOut)}</div>
-            <div className="mt-1 text-[11px] uppercase tracking-wider text-zinc-500">tokens returned (compressed)</div>
+            <div className="mt-1 text-[11px] uppercase tracking-wider text-zinc-400">tokens returned (compressed)</div>
           </CardContent>
         </Card>
       </div>
@@ -554,7 +554,7 @@ export function StatsPanel({ token }: { token: string }) {
                     style={{ height: `${Math.max(3, (d.saved / maxDaily) * 100)}%` }}
                     title={`${d.saved} tokens`}
                   />
-                  <span className="text-[9px] text-zinc-600">{d.day.slice(5)}</span>
+                  <span className="text-[9px] text-zinc-500">{d.day.slice(5)}</span>
                 </div>
               ))}
             </div>
@@ -565,7 +565,7 @@ export function StatsPanel({ token }: { token: string }) {
           <CardContent className="p-5">
             <h3 className="mb-3 text-sm font-semibold text-zinc-200">By action</h3>
             <div className="space-y-2">
-              {stats.byAction.length === 0 && <p className="text-xs text-zinc-500">No activity yet — connect an agent and start chatting.</p>}
+              {stats.byAction.length === 0 && <p className="text-xs text-zinc-400">No activity yet — connect an agent and start chatting.</p>}
               {stats.byAction.map((a) => (
                 <div key={a.action} className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2">
                   <span className="text-xs text-zinc-300">{ACTION_LABELS[a.action] ?? a.action}</span>
@@ -584,13 +584,13 @@ export function StatsPanel({ token }: { token: string }) {
         <CardContent className="p-5">
           <h3 className="mb-3 text-sm font-semibold text-zinc-200">Recent activity</h3>
           <div className="space-y-1.5">
-            {stats.recent.length === 0 && <p className="text-xs text-zinc-500">Nothing yet.</p>}
+            {stats.recent.length === 0 && <p className="text-xs text-zinc-400">Nothing yet.</p>}
             {stats.recent.map((r) => (
               <div key={r.id} className="flex items-center gap-3 text-[11px]">
                 <Zap className="h-3 w-3 shrink-0 text-violet-500" />
                 <span className="text-zinc-300">{ACTION_LABELS[r.action] ?? r.action}</span>
                 {r.tokensSaved > 0 && <span className="text-amber-400">saved {fmtTokens(r.tokensSaved)}</span>}
-                <span className="ml-auto shrink-0 text-zinc-600">{fmtDate(r.createdAt)}</span>
+                <span className="ml-auto shrink-0 text-zinc-500">{fmtDate(r.createdAt)}</span>
               </div>
             ))}
           </div>

@@ -127,7 +127,7 @@ export function GlobalSearch({ token, onNavigate }: GlobalSearchProps) {
         {loading ? (
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-violet-400" />
         ) : (
-          <Search className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+          <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
         )}
         <input
           ref={inputRef}
@@ -136,10 +136,10 @@ export function GlobalSearch({ token, onNavigate }: GlobalSearchProps) {
           onFocus={() => query.trim().length >= 2 && setOpen(true)}
           placeholder="Search everything…"
           aria-label="Search sessions, memories, ledger and skills"
-          className="h-full w-full bg-transparent text-xs text-zinc-200 outline-none placeholder:text-zinc-600"
+          className="h-full w-full bg-transparent text-xs text-zinc-200 outline-none placeholder:text-zinc-500"
         />
         {filtersActive && <SlidersHorizontal className="h-3 w-3 shrink-0 text-violet-400" aria-hidden />}
-        <kbd className="hidden shrink-0 rounded border border-white/10 bg-black/40 px-1 font-mono text-[9px] text-zinc-500 sm:block">⌘K</kbd>
+        <kbd className="hidden shrink-0 rounded border border-white/10 bg-black/40 px-1 font-mono text-[9px] text-zinc-400 sm:block">⌘K</kbd>
       </div>
 
       <AnimatePresence>
@@ -163,7 +163,7 @@ export function GlobalSearch({ token, onNavigate }: GlobalSearchProps) {
             </div>
 
             {!has && !loading && (
-              <p className="px-3 py-6 text-center text-xs text-zinc-500">
+              <p className="px-3 py-6 text-center text-xs text-zinc-400">
                 {results
                   ? filtersActive
                     ? "No matches with the current filters — try widening the type or date range."
@@ -217,7 +217,7 @@ export function GlobalSearch({ token, onNavigate }: GlobalSearchProps) {
             )}
 
             {has && (
-              <p className="flex items-center justify-center gap-1.5 border-t border-white/5 px-3 py-2 text-[10px] text-zinc-600">
+              <p className="flex items-center justify-center gap-1.5 border-t border-white/5 px-3 py-2 text-[10px] text-zinc-500">
                 <CornerDownLeft className="h-3 w-3" /> {results!.total} result{results!.total === 1 ? "" : "s"} in {results!.tookMs} ms
               </p>
             )}
@@ -236,7 +236,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       className={`rounded-full border px-2 py-0.5 text-[10px] leading-4 transition-colors ${
         active
           ? "border-violet-500/50 bg-violet-500/15 text-violet-300"
-          : "border-white/10 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+          : "border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-300"
       }`}
     >
       {children}
@@ -247,7 +247,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 function Group({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
     <div className="mb-1.5">
-      <p className="flex items-center gap-1.5 px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+      <p className="flex items-center gap-1.5 px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
         {icon} {label}
       </p>
       <div className="space-y-0.5">{children}</div>
@@ -263,9 +263,9 @@ function ResultRow({ onClick, title, hint, excerpt }: { onClick: () => void; tit
     >
       <div className="flex items-baseline justify-between gap-2">
         <span className="truncate text-xs font-medium text-zinc-200">{title}</span>
-        <span className="shrink-0 text-[9px] text-zinc-600">{hint}</span>
+        <span className="shrink-0 text-[9px] text-zinc-500">{hint}</span>
       </div>
-      <p className="mt-0.5 line-clamp-2 text-[10px] leading-relaxed text-zinc-500">{excerpt}</p>
+      <p className="mt-0.5 line-clamp-2 text-[10px] leading-relaxed text-zinc-400">{excerpt}</p>
     </button>
   );
 }

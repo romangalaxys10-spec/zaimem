@@ -106,7 +106,7 @@ function PairForm({ token, onPaired }: { token: string; onPaired: () => void }) 
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-100">
             <KeyRound className="h-4 w-4 text-emerald-400" /> 1 · Create the PAT
           </h3>
-          <ol className="mb-4 list-decimal space-y-1.5 pl-4 text-[11px] leading-relaxed text-zinc-500">
+          <ol className="mb-4 list-decimal space-y-1.5 pl-4 text-[11px] leading-relaxed text-zinc-400">
             <li>
               Open <a href="https://github.com/settings/tokens/new?scopes=repo&description=ZaiMem%20Cloud%20DB" target="_blank" rel="noreferrer" className="text-emerald-400 underline-offset-2 hover:underline">github.com → new token (classic)</a>
               {" "}— the <code className="font-mono text-zinc-400">repo</code> scope is pre-filled.
@@ -134,7 +134,7 @@ function PairForm({ token, onPaired }: { token: string; onPaired: () => void }) 
               <Input
                 id="gh-pat" type="password" value={pat} onChange={(e) => setPat(e.target.value)}
                 placeholder="ghp_… or github_pat_…" autoComplete="off"
-                className="h-10 border-white/10 bg-white/5 font-mono text-sm text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-emerald-500/50"
+                className="h-10 border-white/10 bg-white/5 font-mono text-sm text-zinc-200 placeholder:text-zinc-500 focus-visible:ring-emerald-500/50"
               />
             </div>
             <div>
@@ -142,9 +142,9 @@ function PairForm({ token, onPaired }: { token: string; onPaired: () => void }) 
               <Input
                 id="gh-repo" value={repoName} onChange={(e) => setRepoName(e.target.value)}
                 placeholder="zaimem-cloud-db"
-                className="h-10 border-white/10 bg-white/5 font-mono text-sm text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-emerald-500/50"
+                className="h-10 border-white/10 bg-white/5 font-mono text-sm text-zinc-200 placeholder:text-zinc-500 focus-visible:ring-emerald-500/50"
               />
-              <p className="mt-1.5 text-[10px] leading-relaxed text-zinc-600">
+              <p className="mt-1.5 text-[10px] leading-relaxed text-zinc-500">
                 Created automatically if it doesn&apos;t exist. If the name is taken, ZaiMem reuses it only when it already is a ZaiMem cloud DB.
               </p>
             </div>
@@ -235,7 +235,7 @@ function LinkedCard({ token, link, onUnpaired, onActivity }: { token: string; li
                   <h3 className="font-semibold text-zinc-100">{link.repoFull}</h3>
                   {statusBadge}
                 </div>
-                <p className="mt-0.5 text-[11px] text-zinc-500">
+                <p className="mt-0.5 text-[11px] text-zinc-400">
                   {link.login} · branch <code className="font-mono text-zinc-400">{link.branch}</code> · PAT {link.patHint} · {link.syncCount} sync{link.syncCount === 1 ? "" : "s"}
                   {link.lastSyncAt && <> · last {fmtDate(link.lastSyncAt)}</>}
                 </p>
@@ -270,7 +270,7 @@ function LinkedCard({ token, link, onUnpaired, onActivity }: { token: string; li
               <CloudUpload className="mt-0.5 h-4 w-4 text-emerald-400" />
               <div>
                 <p className="text-xs font-medium text-zinc-200">Auto-sync everything</p>
-                <p className="text-[10px] leading-relaxed text-zinc-500">
+                <p className="text-[10px] leading-relaxed text-zinc-400">
                   Sessions, memories, vectors, ledger, skills & stats are mirrored ~4s after each change. Unchanged files are skipped (git blob sha compare).
                 </p>
               </div>
@@ -283,7 +283,7 @@ function LinkedCard({ token, link, onUnpaired, onActivity }: { token: string; li
               <CalendarClock className="mt-0.5 h-4 w-4 text-emerald-400" />
               <div>
                 <p className="text-xs font-medium text-zinc-200">Scheduled daily backup</p>
-                <p className="text-[10px] leading-relaxed text-zinc-500">
+                <p className="text-[10px] leading-relaxed text-zinc-400">
                   Full snapshot pushed roughly every 24h even when nothing changed — a heartbeat that proves the repo backup is alive.
                   {link.lastScheduledAt && <> Last: <span className="text-zinc-400">{fmtDate(link.lastScheduledAt)}</span>.</>}
                 </p>
@@ -299,7 +299,7 @@ function LinkedCard({ token, link, onUnpaired, onActivity }: { token: string; li
 
 function SyncLogList({ logs }: { logs: SyncLogEntry[] }) {
   if (logs.length === 0) {
-    return <p className="py-4 text-center text-xs text-zinc-600">No sync events yet.</p>;
+    return <p className="py-4 text-center text-xs text-zinc-500">No sync events yet.</p>;
   }
   return (
     <ScrollArea className="max-h-56 pr-2">
@@ -309,8 +309,8 @@ function SyncLogList({ logs }: { logs: SyncLogEntry[] }) {
             {l.status === "ok" ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" /> : <XCircle className="h-3.5 w-3.5 shrink-0 text-rose-400" />}
             <span className="shrink-0 text-xs font-medium text-zinc-300">{ACTION_LABELS[l.action] ?? l.action}</span>
             {l.files > 0 && <span className="shrink-0 text-[10px] text-emerald-400/80">{l.files} file{l.files === 1 ? "" : "s"}</span>}
-            <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-zinc-600">{l.detail}</span>
-            <span className="shrink-0 text-[10px] text-zinc-600">{fmtDate(l.createdAt)}</span>
+            <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-zinc-500">{l.detail}</span>
+            <span className="shrink-0 text-[10px] text-zinc-500">{fmtDate(l.createdAt)}</span>
           </motion.div>
         ))}
       </div>
@@ -337,7 +337,7 @@ export function CloudDbPanel({ token, refreshToken }: { token: string; refreshTo
 
   return (
     <div className="space-y-5">
-      <p className="max-w-3xl text-xs leading-relaxed text-zinc-500">
+      <p className="max-w-3xl text-xs leading-relaxed text-zinc-400">
         Pair your GitHub PAT and ZaiMem <span className="text-zinc-300">auto-creates a private repo</span> in your account and mirrors
         <span className="text-zinc-300"> all your data</span> — sessions, vector memories, ledger pages, skills and token-saver stats — into it.
         Your repo becomes the cloud database you own: human-readable files, full commit history, exportable anytime.
@@ -359,7 +359,7 @@ export function CloudDbPanel({ token, refreshToken }: { token: string; refreshTo
       </Card>
 
       {status.linked && (
-        <p className="flex items-center justify-center gap-1.5 text-[10px] text-zinc-600">
+        <p className="flex items-center justify-center gap-1.5 text-[10px] text-zinc-500">
           <Lock className="h-3 w-3" /> Repo is private · only the paired PAT can read it · data paths managed by ZaiMem: /index.json /memories.json /vectors.jsonl /sessions /skills.json /stats.json /sync
         </p>
       )}
