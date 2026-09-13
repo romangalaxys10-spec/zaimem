@@ -4,12 +4,12 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/stats — token savings + activity feed for the dashboard. */
+/** GET /api/stats — token savings + activity insights for the dashboard. */
 export async function GET(req: NextRequest) {
   const user = await authenticate(extractToken(req));
   if (!user) return unauthorized();
 
-  const [byAction, totals, recent, daysRaw] = await Promise.all([
+  const [byAction, totals, recent, daysRaw, topMemories, memoryCounts] = await Promise.all([
     db.usageStat.groupBy({
       by: ["action"],
       where: { userId: user.id },
@@ -23,21 +23,36 @@ export async function GET(req: NextRequest) {
     }),
     db.usageStat.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 12 }),
     db.usageStat.findMany({
-      where: { userId: user.id, createdAt: { gte: new Date(Date.now() - 7 * 86400000) } },
+      where: { userId: user.id, createdAt: { gte: new Date(Date.now() - 14 * 86400000) } },
       select: { action: true, tokensSaved: true, createdAt: true },
     }),
+    db.memory.findMany({
+      where: { userId: user.id },
+      orderBy: [{ accessCount: "desc" }, { updatedAt: "desc" }],
+      take: 5,
+      select: { id: true, kind: true, content: true, accessCount: true, pinned: true },
+    }),
+    Promise.all([
+      db.memory.count({ where: { userId: user.id } }),
+      db.memory.count({ where: { userId: user.id, pinned: true } }),
+      db.memory.count({ where: { userId: user.id, kind: "document" } }),
+    ]),
   ]);
 
-  // daily savings for the last 7 days
-  const days: { day: string; saved: number }[] = [];
-  for (let i = 6; i >= 0; i--) {
+  // daily series for the last 14 days (tokens saved + event count)
+  const days: { day: string; saved: number; events: number }[] = [];
+  for (let i = 13; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000);
     const key = d.toISOString().slice(0, 10);
-    const saved = daysRaw
-      .filter((r) => r.createdAt.toISOString().slice(0, 10) === key)
-      .reduce((a, r) => a + r.tokensSaved, 0);
-    days.push({ day: key, saved });
+    const rows = daysRaw.filter((r) => r.createdAt.toISOString().slice(0, 10) === key);
+    days.push({
+      day: key,
+      saved: rows.reduce((a, r) => a + r.tokensSaved, 0),
+      events: rows.length,
+    });
   }
+
+  const [memories, pinnedCount, documents] = memoryCounts;
 
   return NextResponse.json({
     totals: {
@@ -46,12 +61,14 @@ export async function GET(req: NextRequest) {
       tokensIn: totals._sum.tokensIn ?? 0,
       tokensOut: totals._sum.tokensOut ?? 0,
     },
+    memory: { memories, pinned: pinnedCount, documents },
     byAction: byAction.map((a) => ({
       action: a.action,
       events: a._count._all,
       tokensSaved: a._sum.tokensSaved ?? 0,
     })),
     dailySaved: days,
+    topMemories,
     recent: recent.map((r) => ({
       id: r.id,
       action: r.action,

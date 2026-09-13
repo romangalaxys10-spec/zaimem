@@ -33,6 +33,7 @@ const NEAR_THRESHOLD = 0.8;
 export interface RememberResult {
   id: string;
   created: boolean;
+  pinned?: boolean;
   deduped?: boolean;
   merged?: boolean;
   similarTo?: string;
@@ -44,6 +45,7 @@ export async function rememberMemory(opts: {
   kind?: string;
   importance?: number;
   sessionId?: string | null;
+  pinned?: boolean;
 }): Promise<RememberResult> {
   const content = opts.content.trim().slice(0, 8000);
   if (!content) throw new Error("content is required");
@@ -70,10 +72,14 @@ export async function rememberMemory(opts: {
     // exact-ish duplicate → bump importance + accessCount, refresh timestamp
     await db.memory.update({
       where: { id: best.id },
-      data: { accessCount: { increment: 1 }, importance: { increment: 0.02 } },
+      data: {
+        accessCount: { increment: 1 },
+        importance: { increment: 0.02 },
+        ...(opts.pinned ? { pinned: true } : {}), // re-remembering with pin upgrades the duplicate
+      },
     });
     queueSync(opts.userId); // cloud DB mirror (debounced)
-    return { id: best.id, created: false, deduped: true, similarTo: best.id };
+    return { id: best.id, created: false, pinned: !!opts.pinned, deduped: true, similarTo: best.id };
   }
 
   if (best && best.sim >= NEAR_THRESHOLD && importance <= 0.6) {
@@ -100,10 +106,11 @@ export async function rememberMemory(opts: {
       keywords: extractKeywords(content).join(","),
       embedding: embedToJson(vec),
       importance,
+      pinned: !!opts.pinned,
     },
   });
   queueSync(opts.userId); // cloud DB mirror (debounced)
-  return { id: mem.id, created: true };
+  return { id: mem.id, created: true, pinned: !!opts.pinned };
 }
 
 export interface RecallHit {
@@ -113,6 +120,7 @@ export interface RecallHit {
   score: number;
   sessionId: string | null;
   source: string | null;
+  pinned: boolean;
   createdAt: Date;
   accessCount: number;
 }
@@ -143,16 +151,18 @@ export async function recallMemories(opts: {
     .map((m) => {
       let sim = 0;
       try { sim = cosineSimilarity(qvec, embedFromJson(m.embedding)); } catch { /* skip */ }
-      // recency boost (half-life ≈ 14 days) + importance + keyword exact bonus
+      // recency boost (half-life ≈ 14 days) + importance + keyword exact bonus + pin boost
       const ageDays = (now - new Date(m.updatedAt).getTime()) / 86400000;
       const recency = Math.exp(-ageDays / 14) * 0.12;
       const qWords = new Set(opts.query.toLowerCase().match(/[a-z0-9\u4e00-\u9fff]{2,}/g) ?? []);
       const kw = (m.keywords ?? "").split(",").filter(Boolean);
       const kwBonus = kw.some((k) => qWords.has(k)) ? 0.08 : 0;
-      const score = sim + recency + kwBonus + m.importance * 0.05;
+      const pinBoost = m.pinned ? 0.15 : 0;
+      const score = sim + recency + kwBonus + m.importance * 0.05 + pinBoost;
       return {
         id: m.id, kind: m.kind, content: m.content, score, sessionId: m.sessionId,
         source: m.source ?? null,
+        pinned: m.pinned,
         createdAt: m.createdAt, accessCount: m.accessCount,
       };
     })
@@ -169,15 +179,32 @@ export async function recallMemories(opts: {
   return hits;
 }
 
+/** Fetch pinned memories for enhance_context injection (most recently updated first). */
+export async function getPinnedMemories(userId: string, take = 8) {
+  return db.memory.findMany({
+    where: { userId, pinned: true },
+    orderBy: { updatedAt: "desc" },
+    take,
+    select: { id: true, kind: true, content: true },
+  });
+}
+
 /** Assemble the enhanced-context markdown block returned by zaimem_enhance_context. */
 export function buildEnhanceBlock(opts: {
   currentMessage: string;
   hits: RecallHit[];
+  pinned?: { id: string; kind: string; content: string }[];
   skillMatch: { announcement: string; skill: string; confidence: number; difficulty?: string; iterationBudget?: number; protocol?: string } | null;
   recentDigest?: string | null;
 }): string {
   const parts: string[] = [];
   parts.push(`⟢ ZaiMem context boost — auto-injected inventory (invisible to user)`);
+  if (opts.pinned?.length) {
+    parts.push(`\n【Pinned — always in force】`);
+    for (const p of opts.pinned) {
+      parts.push(`📌 [${p.kind}] ${p.content.replace(/\s+/g, " ").slice(0, 260)}${p.content.length > 260 ? "…" : ""}`);
+    }
+  }
   if (opts.hits.length) {
     parts.push(`\n【Relevant long-term memory — top ${opts.hits.length}】`);
     for (const h of opts.hits) {
@@ -219,4 +246,91 @@ export async function recordStat(opts: {
       },
     });
   } catch { /* stats are best-effort */ }
+}
+
+// ─── Forget (right to be forgotten) ──────────────────────────────────────────
+
+export interface ForgetMatch {
+  id: string;
+  kind: string;
+  content: string;
+  source: string | null;
+  pinned: boolean;
+  createdAt: Date;
+}
+
+export interface ForgetResult {
+  matches: ForgetMatch[];
+  deleted: number;
+  preview: boolean;
+}
+
+/**
+ * Find (and optionally delete) memories matching a selector. Match criteria are
+ * combined with AND; within a query match, either semantic similarity or a
+ * case-insensitive substring hit qualifies. Two-phase by design: preview first
+ * (confirm=false), delete only with confirm=true.
+ */
+export async function forgetMemories(opts: {
+  userId: string;
+  memoryId?: string | null;
+  query?: string | null;
+  kind?: string | null;
+  source?: string | null;
+  sessionId?: string | null;
+  createdBefore?: string | null; // ISO date — only consider memories created before
+  confirm?: boolean;
+}): Promise<ForgetResult> {
+  const where: Record<string, unknown> = { userId: opts.userId };
+  if (opts.memoryId) where.id = opts.memoryId;
+  if (opts.kind && isMemoryKind(opts.kind)) where.kind = opts.kind;
+  if (opts.source) where.source = opts.source;
+  if (opts.sessionId) where.sessionId = opts.sessionId;
+  if (opts.createdBefore) {
+    const d = new Date(opts.createdBefore);
+    if (!Number.isNaN(d.getTime())) where.createdAt = { lt: d };
+  }
+
+  const pool = await db.memory.findMany({
+    where,
+    select: { id: true, kind: true, content: true, source: true, pinned: true, embedding: true, createdAt: true },
+    take: 600,
+    orderBy: { createdAt: "desc" },
+  });
+
+  let matches: ForgetMatch[];
+  const query = opts.query?.trim();
+  if (query) {
+    const qLower = query.toLowerCase();
+    let qvec: number[] | null = null;
+    try { qvec = embed(query); } catch { qvec = null; }
+    matches = pool
+      .filter((m) => {
+        if (m.content.toLowerCase().includes(qLower)) return true;
+        if (qvec) {
+          try {
+            return cosineSimilarity(qvec, embedFromJson(m.embedding)) >= 0.45;
+          } catch { return false; }
+        }
+        return false;
+      })
+      .map((m) => ({
+        id: m.id, kind: m.kind, content: m.content,
+        source: m.source ?? null, pinned: m.pinned, createdAt: m.createdAt,
+      }));
+  } else {
+    matches = pool.map((m) => ({
+      id: m.id, kind: m.kind, content: m.content,
+      source: m.source ?? null, pinned: m.pinned, createdAt: m.createdAt,
+    }));
+  }
+
+  if (!opts.confirm) return { matches, deleted: 0, preview: true };
+
+  if (matches.length) {
+    await db.memory.deleteMany({ where: { id: { in: matches.map((m) => m.id) }, userId: opts.userId } });
+    queueSync(opts.userId); // cloud DB mirror (debounced)
+    await recordStat({ userId: opts.userId, action: "forget", detail: { deleted: matches.length } });
+  }
+  return { matches, deleted: matches.length, preview: false };
 }

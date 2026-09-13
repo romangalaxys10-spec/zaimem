@@ -14,7 +14,7 @@ import {
 import {
   MessageSquare, Database, Gauge, Zap, Search, Trash2, Loader2,
   FileText, Layers, Clock, TrendingUp, Activity, Download, Upload,
-  FileUp, CheckCircle2,
+  FileUp, CheckCircle2, Pin, PinOff, Pencil, Check, X,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -49,6 +49,7 @@ export interface MemoryItem {
   accessCount: number;
   sessionId: string | null;
   source?: string | null;
+  pinned?: boolean;
   createdAt: string;
   updatedAt?: string;
   score?: number;
@@ -67,8 +68,10 @@ export interface SkillItem {
 
 export interface StatsData {
   totals: { events: number; tokensSaved: number; tokensIn: number; tokensOut: number };
+  memory: { memories: number; pinned: number; documents: number };
   byAction: { action: string; events: number; tokensSaved: number }[];
-  dailySaved: { day: string; saved: number }[];
+  dailySaved: { day: string; saved: number; events: number }[];
+  topMemories: { id: string; kind: string; content: string; accessCount: number; pinned: boolean }[];
   recent: { id: string; action: string; tokensSaved: number; detail: string | null; createdAt: string }[];
 }
 
@@ -261,6 +264,7 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
   const [importing, setImporting] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; content: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
 
@@ -299,6 +303,39 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
       refreshToken();
     } catch (e) {
       toast({ title: "Delete failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
+    }
+  }
+
+  async function togglePin(m: MemoryItem) {
+    const next = !m.pinned;
+    try {
+      await api(`/api/memories/${m.id}`, token, { method: "PATCH", body: JSON.stringify({ pinned: next }) });
+      setMemories((list) => {
+        if (!list) return list;
+        const updated = list.map((x) => (x.id === m.id ? { ...x, pinned: next } : x));
+        return next
+          ? [...updated.filter((x) => x.id === m.id), ...updated.filter((x) => x.id !== m.id)] // pinned float to top
+          : updated;
+      });
+      toast({
+        title: next ? "Memory pinned" : "Memory unpinned",
+        description: next ? "It will be injected into every enhance_context block." : "Back to normal recall ranking.",
+      });
+    } catch (e) {
+      toast({ title: "Update failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
+    }
+  }
+
+  async function saveEdit(id: string, content: string) {
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    try {
+      await api(`/api/memories/${id}`, token, { method: "PATCH", body: JSON.stringify({ content: trimmed }) });
+      setMemories((list) => list?.map((x) => (x.id === id ? { ...x, content: trimmed } : x)) ?? null);
+      setEditing(null);
+      toast({ title: "Memory updated", description: "Re-embedded — vector search reflects the new content immediately." });
+    } catch (e) {
+      toast({ title: "Update failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
     }
   }
 
@@ -492,6 +529,11 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <KindBadge kind={m.kind} />
+                  {m.pinned && (
+                    <span className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                      <Pin className="h-2.5 w-2.5" /> pinned
+                    </span>
+                  )}
                   {m.source && (
                     <span className="flex items-center gap-1 font-mono text-[10px] text-lime-300/80">
                       <FileText className="h-3 w-3" /> {m.source}
@@ -500,8 +542,57 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
                   {m.score !== undefined && <span className="text-[10px] text-emerald-400/80">score {m.score.toFixed(3)}</span>}
                   {m.keywords && <span className="hidden font-mono text-[10px] text-zinc-500 sm:inline">{m.keywords.split(",").slice(0, 4).join(" · ")}</span>}
                 </div>
-                <p className="text-xs leading-relaxed text-zinc-300">{m.content}</p>
+                {editing?.id === m.id ? (
+                  <div className="mt-1 space-y-2">
+                    <textarea
+                      value={editing.content}
+                      onChange={(e) => setEditing({ id: m.id, content: e.target.value })}
+                      rows={3}
+                      autoFocus
+                      className="w-full resize-y rounded-lg border border-violet-500/30 bg-white/5 p-2.5 text-xs leading-relaxed text-zinc-200 outline-none focus:border-violet-500/60"
+                      aria-label="Edit memory content"
+                    />
+                    <div className="flex gap-1.5">
+                      <Button
+                        size="sm" onClick={() => saveEdit(m.id, editing.content)}
+                        className="h-7 bg-violet-600 px-2.5 text-[11px] text-white hover:bg-violet-500"
+                      >
+                        <Check className="mr-1 h-3 w-3" /> Save & re-embed
+                      </Button>
+                      <Button
+                        size="sm" variant="outline" onClick={() => setEditing(null)}
+                        className="h-7 border-white/10 bg-white/5 px-2.5 text-[11px] text-zinc-300 hover:bg-white/10"
+                      >
+                        <X className="mr-1 h-3 w-3" /> Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs leading-relaxed text-zinc-300">{m.content}</p>
+                )}
               </div>
+              {editing?.id !== m.id && (
+                <>
+                  <Button
+                    size="icon" variant="ghost"
+                    onClick={() => togglePin(m)}
+                    className={`h-7 w-7 shrink-0 transition-opacity hover:bg-amber-500/10 hover:text-amber-400 ${
+                      m.pinned ? "text-amber-400 opacity-100" : "text-zinc-500 opacity-0 group-hover:opacity-100"
+                    }`}
+                    aria-label={m.pinned ? "Unpin memory" : "Pin memory"}
+                  >
+                    {m.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    size="icon" variant="ghost"
+                    onClick={() => setEditing({ id: m.id, content: m.content })}
+                    className="h-7 w-7 shrink-0 text-zinc-500 opacity-0 transition-opacity hover:bg-violet-500/10 hover:text-violet-400 group-hover:opacity-100"
+                    aria-label="Edit memory"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              )}
               <Button
                 size="icon" variant="ghost"
                 onClick={() => remove(m.id)}
@@ -608,6 +699,7 @@ export function StatsPanel({ token }: { token: string }) {
   }
 
   const maxDaily = Math.max(1, ...stats.dailySaved.map((d) => d.saved));
+  const maxEvents = Math.max(1, ...stats.dailySaved.map((d) => d.events));
 
   return (
     <div className="space-y-5">
@@ -635,21 +727,44 @@ export function StatsPanel({ token }: { token: string }) {
         </Card>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <span className="flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] text-violet-300">
+          <Database className="h-3 w-3" /> {stats.memory.memories.toLocaleString()} memories
+        </span>
+        <span className="flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-[11px] text-amber-300">
+          <Pin className="h-3 w-3" /> {stats.memory.pinned} pinned
+        </span>
+        <span className="flex items-center gap-1.5 rounded-full border border-lime-500/25 bg-lime-500/10 px-3 py-1 text-[11px] text-lime-300">
+          <FileText className="h-3 w-3" /> {stats.memory.documents} document chunks
+        </span>
+      </div>
+
       <div className="grid gap-5 md:grid-cols-2">
         <Card className="border-white/5 bg-white/[0.03]">
           <CardContent className="p-5">
-            <h3 className="mb-4 text-sm font-semibold text-zinc-200">Saved tokens · last 7 days</h3>
-            <div className="flex h-32 items-end gap-2">
+            <h3 className="mb-4 text-sm font-semibold text-zinc-200">Saved tokens · last 14 days</h3>
+            <div className="flex h-32 items-end gap-1">
               {stats.dailySaved.map((d) => (
-                <div key={d.day} className="flex flex-1 flex-col items-center gap-1.5">
+                <div key={d.day} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                   <div
                     className="w-full rounded-t bg-gradient-to-t from-amber-600/60 to-amber-400/80 transition-all"
                     style={{ height: `${Math.max(3, (d.saved / maxDaily) * 100)}%` }}
-                    title={`${d.saved} tokens`}
+                    title={`${d.day} — ${d.saved} tokens saved · ${d.events} events`}
                   />
-                  <span className="text-[9px] text-zinc-500">{d.day.slice(5)}</span>
+                  {d.events > 0 && (
+                    <div
+                      className="w-full rounded-t bg-violet-500/60"
+                      style={{ height: `${Math.max(2, (d.events / maxEvents) * 22)}px` }}
+                      title={`${d.day} — ${d.events} events`}
+                    />
+                  )}
+                  <span className="text-[8px] text-zinc-500">{d.day.slice(8)}</span>
                 </div>
               ))}
+            </div>
+            <div className="mt-2 flex gap-4 text-[10px] text-zinc-500">
+              <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-amber-400/80" /> tokens saved</span>
+              <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-violet-500/60" /> events</span>
             </div>
           </CardContent>
         </Card>
@@ -665,6 +780,29 @@ export function StatsPanel({ token }: { token: string }) {
                   <span className="flex items-center gap-3">
                     <span className="text-xs font-semibold text-zinc-100">{a.events}</span>
                     {a.tokensSaved > 0 && <span className="text-[10px] text-amber-400">−{fmtTokens(a.tokensSaved)}</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/5 bg-white/[0.03]">
+          <CardContent className="p-5">
+            <h3 className="mb-3 text-sm font-semibold text-zinc-200">Most accessed memories</h3>
+            <div className="space-y-2">
+              {stats.topMemories.length === 0 && <p className="text-xs text-zinc-400">No memories yet.</p>}
+              {stats.topMemories.map((m) => (
+                <div key={m.id} className="flex items-start justify-between gap-3 rounded-lg bg-white/[0.03] px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <KindBadge kind={m.kind} />
+                      {m.pinned && <Pin className="h-2.5 w-2.5 shrink-0 text-amber-400" />}
+                    </div>
+                    <p className="mt-1 truncate text-[11px] text-zinc-300">{m.content}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-violet-500/30 bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-300">
+                    ×{m.accessCount}
                   </span>
                 </div>
               ))}

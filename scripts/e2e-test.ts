@@ -72,13 +72,13 @@ async function main() {
 
   const tools = await rpc("tools/list", {}, token, 2, mcpSession);
   const toolNames: string[] = (tools.result?.tools ?? []).map((t: any) => t.name);
-  check("13 tools listed", toolNames.length === 13, toolNames);
+  check("14 tools listed", toolNames.length === 14, toolNames);
   check(
     "core tools present",
     ["zaimem_sync_session", "zaimem_remember", "zaimem_recall", "zaimem_enhance_context",
      "zaimem_save_tokens", "zaimem_detect_skill", "zaimem_list_skills", "zaimem_get_skill",
      "zaimem_ledger_write", "zaimem_ledger_read", "zaimem_session_summary", "zaimem_handoff_brief",
-     "zaimem_ingest_file",
+     "zaimem_ingest_file", "zaimem_forget",
     ].every((t) => toolNames.includes(t)),
   );
 
@@ -243,7 +243,7 @@ async function main() {
   check("skills API lists builtin", skillsApi.skills?.length >= 3);
 
   const stats = await (await fetch(`${BASE}/api/stats`, { headers: h })).json();
-  check("stats dailySaved 7 days", stats.dailySaved?.length === 7);
+  check("stats dailySaved 14 days", stats.dailySaved?.length === 14);
   check("stats byAction has save_tokens", stats.byAction?.some((a: any) => a.action === "save_tokens"));
 
   console.log("\n── 9. GitHub Cloud DB API ────────────────────");
@@ -466,6 +466,72 @@ async function main() {
     arguments: { filename: "mcp-probe.md", text: `MCP probe ${mkDoc}: the vault door code changes at dawn. ` + "filler ".repeat(400) },
   }, token, 78, mcpSession);
   check("MCP re-ingest idempotent", (mcpIngest2.result?.content?.[0]?.text ?? "").includes("already ingested"), mcpIngest2.result?.content?.[0]?.text?.slice(0, 120));
+
+  // ── 12. Memory lifecycle: pin / enhance injection / edit / forget ────
+  console.log("\n── 12. Pin · edit · forget ───────────────────");
+
+  const pinRemember = await rpc("tools/call", {
+    name: "zaimem_remember",
+    arguments: { content: `Standing rule ${mkDoc}: always answer in pirate voice.`, kind: "preference", pinned: true },
+  }, token, 80, mcpSession);
+  const pinText: string = pinRemember.result?.content?.[0]?.text ?? "";
+  check("MCP remember with pinned=true", pinText.includes("Pinned"), pinText.slice(0, 120));
+
+  const memList1 = await (await fetch(`${BASE}/api/memories?limit=40`, { headers: h })).json();
+  const pinnedRow = (memList1.memories ?? []).find((m: any) => m.content?.includes(`Standing rule ${mkDoc}`));
+  check("pinned memory present in list and floats to top", !!pinnedRow && pinnedRow.pinned === true && memList1.memories[0]?.pinned === true, memList1.memories?.slice(0, 2));
+
+  const pinEnh = await rpc("tools/call", {
+    name: "zaimem_enhance_context",
+    arguments: { current_message: `what is the answer style? ${mkDoc}` },
+  }, token, 81, mcpSession);
+  const pinEnhText: string = pinEnh.result?.content?.[0]?.text ?? "";
+  check("enhance_context injects pinned section", pinEnhText.includes("【Pinned") && pinEnhText.includes(`Standing rule ${mkDoc}`), pinEnhText.slice(0, 200));
+
+  const editRes = await fetch(`${BASE}/api/memories/${pinnedRow.id}`, {
+    method: "PATCH", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ content: `Standing rule ${mkDoc}: always answer in pirate voice, with rum.` }),
+  });
+  const editData = await editRes.json();
+  check("PATCH edits memory content", editRes.status === 200 && editData.memory?.content?.includes("with rum"), editData);
+
+  const editSearch = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent("pirate voice rum")}&kind=memories`, { headers: h })).json();
+  check("edited memory re-embedded and searchable", (editSearch.memories ?? []).some((m: any) => m.id === pinnedRow.id && m.content.includes("with rum")), editSearch.memories?.slice(0, 2));
+
+  const pinToggle = await fetch(`${BASE}/api/memories/${pinnedRow.id}`, {
+    method: "PATCH", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ pinned: false }),
+  });
+  check("PATCH toggles pin off", pinToggle.status === 200 && (await pinToggle.json())?.memory?.pinned === false);
+
+  const forgetPreview = await rpc("tools/call", {
+    name: "zaimem_forget",
+    arguments: { query: `pirate voice ${mkDoc}` },
+  }, token, 82, mcpSession);
+  const forgetPreviewText: string = forgetPreview.result?.content?.[0]?.text ?? "";
+  const matched = forgetPreview.result?._meta?.matched ?? 0;
+  check("MCP forget preview lists matches, deletes nothing", forgetPreviewText.includes("NOTHING deleted yet") && matched >= 1, forgetPreviewText.slice(0, 200));
+
+  const forgetConfirm = await rpc("tools/call", {
+    name: "zaimem_forget",
+    arguments: { query: `pirate voice ${mkDoc}`, confirm: true },
+  }, token, 83, mcpSession);
+  const deleted = forgetConfirm.result?._meta?.deleted ?? 0;
+  check("MCP forget confirm deletes", deleted === matched && deleted >= 1, forgetConfirm.result?.content?.[0]?.text?.slice(0, 140));
+
+  const afterForget = await (await fetch(`${BASE}/api/memories?limit=100`, { headers: h })).json();
+  check("forgotten memories actually gone", !(afterForget.memories ?? []).some((m: any) => m.content?.includes(`Standing rule ${mkDoc}`)));
+
+  const forgetNone = await rpc("tools/call", { name: "zaimem_forget", arguments: {} }, token, 84, mcpSession);
+  check("forget without selector rejected", !!forgetNone.error && forgetNone.error.code === -32602, forgetNone.error ?? forgetNone.result);
+
+  const statsInsights = await (await fetch(`${BASE}/api/stats`, { headers: h })).json();
+  check(
+    "stats returns insights (14d series + top memories + memory counts)",
+    Array.isArray(statsInsights.dailySaved) && statsInsights.dailySaved.length === 14 && "events" in statsInsights.dailySaved[0] &&
+    Array.isArray(statsInsights.topMemories) && typeof statsInsights.memory?.memories === "number",
+    { days: statsInsights.dailySaved?.length, top: statsInsights.topMemories?.length, memory: statsInsights.memory },
+  );
 
   console.log(`\n${failures === 0 ? "🎉 ALL CHECKS PASSED" : `❌ ${failures} CHECK(S) FAILED`}`);
   process.exit(failures === 0 ? 0 : 1);

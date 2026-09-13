@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
         score: h.score,
         sessionId: h.sessionId,
         source: h.source,
+        pinned: h.pinned,
         accessCount: h.accessCount,
         createdAt: h.createdAt,
       })),
@@ -34,14 +35,25 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const rows = await db.memory.findMany({
-    where: { userId: user.id },
-    orderBy: { updatedAt: "desc" },
-    take: Math.min(100, limit),
-    select: {
-      id: true, kind: true, content: true, keywords: true, importance: true,
-      accessCount: true, sessionId: true, source: true, createdAt: true, updatedAt: true,
-    },
-  });
-  return NextResponse.json({ memories: rows, mode: "recent" });
+  const [rows, pinnedRows] = await Promise.all([
+    db.memory.findMany({
+      where: { userId: user.id, pinned: false },
+      orderBy: { updatedAt: "desc" },
+      take: Math.min(100, limit),
+      select: {
+        id: true, kind: true, content: true, keywords: true, importance: true,
+        accessCount: true, sessionId: true, source: true, pinned: true, createdAt: true, updatedAt: true,
+      },
+    }),
+    db.memory.findMany({
+      where: { userId: user.id, pinned: true },
+      orderBy: { updatedAt: "desc" },
+      take: 10,
+      select: {
+        id: true, kind: true, content: true, keywords: true, importance: true,
+        accessCount: true, sessionId: true, source: true, pinned: true, createdAt: true, updatedAt: true,
+      },
+    }),
+  ]);
+  return NextResponse.json({ memories: [...pinnedRows, ...rows].slice(0, Math.min(100, limit)), mode: "recent" });
 }

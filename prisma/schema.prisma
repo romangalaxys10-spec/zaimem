@@ -55,6 +55,7 @@ model Memory {
   keywords    String? // comma-separated keywords
   embedding   String // JSON float[] — local hashed n-gram vector
   importance  Float    @default(0.5)
+  pinned      Boolean  @default(false) // pinned memories are always injected into enhance_context
   accessCount Int      @default(0)
   source      String? // source filename for document chunks (file ingestion)
   docHash     String? // sha256[:16] of normalized doc text — idempotent re-ingest

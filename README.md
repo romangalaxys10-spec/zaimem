@@ -45,8 +45,10 @@
 
 - **Automated private tokens** — no signup: visit the app, get a `zm_…` token instantly, log in with it.
 - **Magic prompt** — the dashboard generates a ready-to-paste activation prompt with your MCP endpoint and key embedded. Paste it into any chat.z.ai agent-mode chat and the session is wired to ZaiMem.
-- **MCP server** (JSON-RPC 2.0, streamable HTTP) — 13 tools, 3 resources, prompt templates, batch calls, session ids, CORS.
+- **MCP server** (JSON-RPC 2.0, streamable HTTP) — 14 tools, 3 resources, prompt templates, batch calls, session ids, CORS.
 - **Document ingestion** — `zaimem_ingest_file` MCP tool + dashboard drag-and-drop upload (PDF / DOCX / TXT / MD / CSV / code): text is auto-chunked into ~600-token overlapping pieces, every chunk is embedded as a `document` memory tagged with its source filename, and re-ingestion is idempotent (same content hash → no-op; changed file → chunks replaced). Recall hits cite `[doc:file.pdf · part i/N]`.
+- **Pinned memories** — `zaimem_remember {pinned: true}` (or one click in the dashboard) marks a memory as always-in-force: it is injected into every `zaimem_enhance_context` block and gets a recall ranking boost.
+- **Right to be forgotten** — `zaimem_forget` MCP tool with a two-phase preview → confirm flow: match by id, semantic query, kind, source filename (purge a whole document) or created-before date; dashboard rows also support inline edit (re-embeds instantly) and pin toggle.
 - **Local vector memory** — 384-dim hashed word/bigram/char-4gram embeddings with cosine recall; auto-dedupe (0.94 duplicate / 0.80 merge thresholds), recency + keyword boosts, context-block assembly.
 - **Token saver** — LLM-powered digests (with extractive fallback) compress long context; token accounting per action.
 - **Smart skills** (zcode-smart-skill integration) — SKILL.md skill registry, auto trigger detection, difficulty budgets (E5: 2/6/12), ledger pages (`notes.md`, `tasks.json`) with size budgets, handoff brief with TRUST clause, reflection schema.
@@ -128,7 +130,9 @@ The endpoint implements the Model Context Protocol over streamable HTTP (`initia
 | Tool | Purpose |
 |---|---|
 | `zaimem_sync_session` | Register/sync the current chat.z.ai session |
-| `zaimem_remember` | Store a memory (auto-dedupe + merge) |
+| `zaimem_remember` | Store a memory (auto-dedupe + merge, optional `pinned`) |
+| `zaimem_forget` | Right-to-be-forgotten: preview → confirm deletion by id/query/kind/source/date |
+| `zaimem_ingest_file` | Ingest a whole document: chunk + embed + hash-dedupe, source citations |
 | `zaimem_recall` | Vector + keyword recall with recency/importance boosts |
 | `zaimem_enhance_context` | Build an injectable context block for the current message |
 | `zaimem_save_tokens` | Digest/compress long content and bank the savings |
