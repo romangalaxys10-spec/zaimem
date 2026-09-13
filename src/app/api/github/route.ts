@@ -12,7 +12,7 @@ function fail(e: unknown) {
   return NextResponse.json({ error: "github", message: e instanceof Error ? e.message : String(e) }, { status: 500 });
 }
 
-/** GET /api/github — pairing status + recent sync log */
+/** GET /api/github — pairing status + recent sync log (+ schedule fields) */
 export async function GET(req: NextRequest) {
   const user = await authenticate(extractToken(req));
   if (!user) return unauthorized();
@@ -41,6 +41,8 @@ export async function GET(req: NextRequest) {
       repoUrl: link.repoUrl,
       branch: link.branch,
       autoSync: link.autoSync,
+      scheduleEnabled: link.scheduleEnabled,
+      lastScheduledAt: link.lastScheduledAt,
       status: link.status,
       lastError: link.lastError,
       lastSyncAt: link.lastSyncAt,
@@ -56,12 +58,13 @@ export async function GET(req: NextRequest) {
  *                or { action: "unpair" }
  *                or { action: "sync" }
  *                or { action: "toggle", autoSync }
+ *                or { action: "toggle_schedule", scheduleEnabled }
  */
 export async function POST(req: NextRequest) {
   const user = await authenticate(extractToken(req));
   if (!user) return unauthorized();
 
-  const body = await req.json().catch(() => ({} as { action?: string; pat?: string; repoName?: string; autoSync?: boolean }));
+  const body = await req.json().catch(() => ({} as { action?: string; pat?: string; repoName?: string; autoSync?: boolean; scheduleEnabled?: boolean }));
 
   try {
     switch (body.action) {
@@ -93,8 +96,19 @@ export async function POST(req: NextRequest) {
         });
         return NextResponse.json({ ok: true, autoSync: link.autoSync });
       }
+      case "toggle_schedule": {
+        const existing = await db.githubLink.findUnique({ where: { userId: user.id }, select: { id: true } });
+        if (!existing) {
+          return NextResponse.json({ error: "github", message: "GitHub is not paired for this account." }, { status: 400 });
+        }
+        const link = await db.githubLink.update({
+          where: { userId: user.id },
+          data: { scheduleEnabled: !!body.scheduleEnabled },
+        });
+        return NextResponse.json({ ok: true, scheduleEnabled: link.scheduleEnabled });
+      }
       default:
-        return NextResponse.json({ error: "bad_request", message: "Unknown action. Use pair | unpair | sync | toggle." }, { status: 400 });
+        return NextResponse.json({ error: "bad_request", message: "Unknown action. Use pair | unpair | sync | toggle | toggle_schedule." }, { status: 400 });
     }
   } catch (e) {
     return fail(e);

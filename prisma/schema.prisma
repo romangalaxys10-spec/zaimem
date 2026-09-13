@@ -124,6 +124,8 @@ model GithubLink {
   repoUrl    String // html_url
   branch     String    @default("main")
   autoSync   Boolean   @default(true) // auto-push after every data change
+  scheduleEnabled  Boolean   @default(true) // daily scheduled full backup
+  lastScheduledAt  DateTime? // last time the scheduled backup ran for this user
   status     String    @default("active") // active | error | syncing
   lastError  String?
   lastSyncAt DateTime?

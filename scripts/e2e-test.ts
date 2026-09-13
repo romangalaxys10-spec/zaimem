@@ -280,6 +280,52 @@ async function main() {
   });
   check("sync without pairing rejected", ghSyncUnlinked.status === 400);
 
+  const ghTglSchedUnlinked = await fetch(`${BASE}/api/github`, {
+    method: "POST",
+    headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "toggle_schedule", scheduleEnabled: false }),
+  });
+  const ghTglSchedData = await ghTglSchedUnlinked.json().catch(() => ({}));
+  check("toggle_schedule without pairing rejected", ghTglSchedUnlinked.status === 400 && typeof ghTglSchedData.message === "string");
+
+  console.log("\n── 10. Global search + scheduled backup APIs ─");
+  const searchNoAuth = await fetch(`${BASE}/api/search?q=violet`);
+  check("search rejects unauthenticated", searchNoAuth.status === 401);
+
+  const searchEmpty = await fetch(`${BASE}/api/search?q=`, { headers: h });
+  check("search with empty q → 400", searchEmpty.status === 400);
+
+  const search1 = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent("violet UI accents")}`, { headers: h })).json();
+  check(
+    "search finds memory hits (vector/substring)",
+    search1.memories?.some((m: any) => m.content.includes("violet")),
+    { sessions: search1.sessions?.length, memories: search1.memories?.length },
+  );
+  check("search finds session hits", search1.sessions?.length >= 1, search1.sessions);
+  check("search finds skill hits (registry)", search1.skills?.length >= 1, search1.skills?.map((s: any) => s.name));
+  check("search reports tookMs timing", typeof search1.tookMs === "number" && search1.tookMs >= 0);
+
+  const search2 = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent("w42")}`, { headers: h })).json();
+  check(
+    "search finds ledger page hits",
+    search2.ledger?.some((p: any) => p.path.includes("notes")),
+    search2.ledger?.map((p: any) => p.path),
+  );
+
+  const search3 = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent("zzqqxx-no-such-term-12345")}`, { headers: h })).json();
+  check("search with no matches → empty groups", search3.total === 0, search3.total);
+
+  // global ledger page (no session_id) — regression: FK violation fixed
+  const gw = await rpc("tools/call", { name: "zaimem_ledger_write", arguments: { path: "workflows.md", content: "Global onboarding workflow: clone repo, pair PAT, paste magic prompt." } }, token);
+  check("global ledger_write (no session) ok", !gw.error, gw.error?.data);
+  const gr = await rpc("tools/call", { name: "zaimem_ledger_read", arguments: { path: "workflows.md" } }, token);
+  check("global ledger_read round-trip", String(gr.result?.content?.[0]?.text ?? "").includes("onboarding workflow"), gr.error ?? gr.result?.content?.[0]?.text);
+  const search4 = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent("onboarding workflow")}`, { headers: h })).json();
+  check("search finds global ledger page", search4.ledger?.some((p: any) => p.path === "workflows.md" && p.sessionId === null), search4.ledger);
+
+  const ghStatus2 = await (await fetch(`${BASE}/api/github`, { headers: h })).json();
+  check("github status shape intact (schedule fields only when linked)", ghStatus2.linked === false && ghStatus2.link === null);
+
   console.log(`\n${failures === 0 ? "🎉 ALL CHECKS PASSED" : `❌ ${failures} CHECK(S) FAILED`}`);
   process.exit(failures === 0 ? 0 : 1);
 }

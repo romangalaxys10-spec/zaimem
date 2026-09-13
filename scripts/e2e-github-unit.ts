@@ -23,6 +23,7 @@ import { computeBlobSha } from "@/lib/zaimem/crypto";
 import {
   validatePat, ensurePrivateRepo, pairUser, syncUser, unpairUser, queueSync, GhError,
 } from "@/lib/zaimem/github";
+import { runScheduledBackups } from "@/lib/zaimem/scheduler";
 
 // ─── mock GitHub API ─────────────────────────────────────────────────────────
 const MOCK = "https://github-mock.local";
@@ -210,7 +211,28 @@ async function main() {
   await syncUser(user.id, "force");
   check("recovers to healthy on next sync", (await db.githubLink.findUnique({ where: { userId: user.id } }))!.status === "active");
 
-  console.log("\n── 11. Unpair ────────────────────────────────");
+  console.log("\n── 11. Scheduled backup ──────────────────────");
+  // due immediately (lastScheduledAt null, scheduleEnabled default true)
+  const schedRes = await runScheduledBackups([user.id]);
+  check("scheduled pass ran for 1 user, ok", schedRes.attempted === 1 && schedRes.ok === 1, schedRes);
+  const linkAfterSched = await db.githubLink.findUnique({ where: { userId: user.id } });
+  check("lastScheduledAt stamped", !!linkAfterSched?.lastScheduledAt, linkAfterSched?.lastScheduledAt);
+  const backupLog = await db.syncLog.findFirst({ where: { userId: user.id, action: "backup", status: "ok" }, orderBy: { createdAt: "desc" } });
+  check("SyncLog action=backup written", !!backupLog, backupLog?.detail);
+
+  // not due anymore → due-filtered pass (no explicit ids) is a no-op
+  const schedRes2 = await runScheduledBackups();
+  check("due-filtered pass skips (not due)", schedRes2.attempted === 0, schedRes2);
+
+  // opted out → filtered out even with explicit ids
+  await db.githubLink.update({ where: { userId: user.id }, data: { scheduleEnabled: false, lastScheduledAt: null } });
+  const schedRes3 = await runScheduledBackups([user.id]);
+  check("opted-out user skipped", schedRes3.attempted === 0 && schedRes3.ok === 0, schedRes3);
+  const linkAfterOff = await db.githubLink.findUnique({ where: { userId: user.id } });
+  check("lastScheduledAt untouched when skipped", linkAfterOff?.lastScheduledAt === null);
+  await db.githubLink.update({ where: { userId: user.id }, data: { scheduleEnabled: true } });
+
+  console.log("\n── 12. Unpair ────────────────────────────────");
   const up = await unpairUser(user.id);
   check("unpaired, link removed, log kept", up && (await db.githubLink.findUnique({ where: { userId: user.id } })) === null);
   check("repo kept in GitHub account", mockState.repos.has("octocat/zaimem-cloud-db"));

@@ -47,6 +47,30 @@ function newMcpSessionId(): string {
   return `mcp-${Date.now().toString(36)}-${(++sessionCounter).toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// ─── global (session-less) ledger pages ──────────────────────────────────────
+// sessionId is nullable; SQLite treats NULLs as distinct in the compound
+// unique index, so null pages are matched manually instead of via upsert.
+
+async function findGlobalLedgerPage(userId: string, path: string) {
+  const pages = await db.ledgerPage.findMany({
+    where: { userId, sessionId: null, path },
+    orderBy: { updatedAt: "desc" },
+    take: 1,
+  });
+  return pages[0] ?? null;
+}
+
+async function upsertGlobalLedgerPage(userId: string, path: string, content: string) {
+  const existing = await findGlobalLedgerPage(userId, path);
+  if (existing) {
+    return db.ledgerPage.update({
+      where: { id: existing.id },
+      data: { content, updatedAt: new Date() },
+    });
+  }
+  return db.ledgerPage.create({ data: { userId, sessionId: null, path, content } });
+}
+
 // ─── JSON-RPC helpers ────────────────────────────────────────────────────────
 
 interface RpcRequest {
@@ -426,13 +450,16 @@ async function handleToolCall(userId: string, name: string, args: Record<string,
       if (!path || content === undefined) return invalidParams(id, "path and content are required");
       const { trimmed, note } = enforceLedgerBudget(path, content);
       const finalContent = trimmed ?? content;
-      // normalize: empty string = global page (avoids null-in-unique-index issues)
-      const sid = str("session_id") ?? "";
-      const page = await db.ledgerPage.upsert({
-        where: { userId_sessionId_path: { userId, sessionId: sid, path } },
-        update: { content: finalContent, updatedAt: new Date() },
-        create: { userId, sessionId: sid, path, content: finalContent },
-      });
+      // session-less writes are GLOBAL pages (sessionId: null — "" would violate
+      // the Session FK; null matching is handled manually, see findLedgerPage)
+      const sid = str("session_id") ?? null;
+      const page = sid
+        ? await db.ledgerPage.upsert({
+            where: { userId_sessionId_path: { userId, sessionId: sid, path } },
+            update: { content: finalContent, updatedAt: new Date() },
+            create: { userId, sessionId: sid, path, content: finalContent },
+          })
+        : await upsertGlobalLedgerPage(userId, path, finalContent);
       queueSync(userId); // cloud DB mirror (debounced)
       return textResult(id, `📓 Ledger "${path}" written (${estimateTokens(finalContent)} tokens).${note ? ` ${note}` : ""}${!LEDGER_BUDGETS[path] ? " (no budget for custom pages)" : ""}`, { meta: { ledger_id: page.id } });
     }
@@ -440,14 +467,14 @@ async function handleToolCall(userId: string, name: string, args: Record<string,
     case "zaimem_ledger_read": {
       const path = str("path");
       if (!path) return invalidParams(id, "path is required");
-      const sidR = str("session_id") ?? "";
-      const page = await db.ledgerPage.findUnique({
-        where: { userId_sessionId_path: { userId, sessionId: sidR, path } },
-      });
+      const sidR = str("session_id") ?? null;
+      const page = sidR
+        ? await db.ledgerPage.findFirst({ where: { userId, sessionId: sidR, path } })
+        : await findGlobalLedgerPage(userId, path);
       if (!page) {
         // fall back to global (no session) page
-        const global = await db.ledgerPage.findUnique({ where: { userId_sessionId_path: { userId, sessionId: "", path } } });
-        if (global && sidR !== "") return textResult(id, `📓 ${path} (global):\n\n${global.content}`);
+        const global = sidR ? await findGlobalLedgerPage(userId, path) : null;
+        if (global) return textResult(id, `📓 ${path} (global):\n\n${global.content}`);
         return textResult(id, `📓 Ledger "${path}" is empty — nothing written yet. Known budgets: ${Object.entries(LEDGER_BUDGETS).map(([k, v]) => `${k}≤${v}`).join(", ")}.`);
       }
       return textResult(id, `📓 ${path}:\n\n${page.content}`);

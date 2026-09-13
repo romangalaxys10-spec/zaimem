@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Github, CloudUpload, Link2, Loader2, ExternalLink, ShieldCheck,
-  CheckCircle2, XCircle, RefreshCw, Unlink, KeyRound, History, Lock,
+  CheckCircle2, XCircle, RefreshCw, Unlink, KeyRound, History, Lock, CalendarClock,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { fmtDate } from "./panels";
@@ -23,6 +23,8 @@ interface GhLink {
   repoUrl: string;
   branch: string;
   autoSync: boolean;
+  scheduleEnabled: boolean;
+  lastScheduledAt: string | null;
   status: string;
   lastError: string | null;
   lastSyncAt: string | null;
@@ -63,6 +65,7 @@ const ACTION_LABELS: Record<string, string> = {
   force_sync: "Manual sync",
   unpair: "Unpaired",
   auto: "Auto sync",
+  backup: "Scheduled backup",
   error: "Error",
 };
 
@@ -161,6 +164,7 @@ function PairForm({ token, onPaired }: { token: string; onPaired: () => void }) 
 function LinkedCard({ token, link, onUnpaired, onActivity }: { token: string; link: GhLink; onUnpaired: () => void; onActivity: () => void }) {
   const [syncing, setSyncing] = useState(false);
   const [autoSync, setAutoSync] = useState(link.autoSync);
+  const [scheduleEnabled, setScheduleEnabled] = useState(link.scheduleEnabled);
 
   async function syncNow() {
     setSyncing(true);
@@ -183,6 +187,17 @@ function LinkedCard({ token, link, onUnpaired, onActivity }: { token: string; li
     } catch {
       setAutoSync(!v);
       toast({ title: "Could not update auto-sync", variant: "destructive" });
+    }
+  }
+
+  async function toggleSchedule(v: boolean) {
+    setScheduleEnabled(v);
+    try {
+      await call(token, { action: "toggle_schedule", scheduleEnabled: v }, "POST");
+      toast({ title: v ? "Scheduled backup enabled" : "Scheduled backup off", description: v ? "A full snapshot is pushed about once a day, even without changes." : "Your cloud DB is only updated on changes / manual sync." });
+    } catch {
+      setScheduleEnabled(!v);
+      toast({ title: "Could not update scheduled backup", variant: "destructive" });
     }
   }
 
@@ -261,6 +276,20 @@ function LinkedCard({ token, link, onUnpaired, onActivity }: { token: string; li
               </div>
             </div>
             <Switch checked={autoSync} onCheckedChange={toggleAuto} aria-label="Toggle auto-sync" />
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/30 p-3">
+            <div className="flex items-start gap-2">
+              <CalendarClock className="mt-0.5 h-4 w-4 text-emerald-400" />
+              <div>
+                <p className="text-xs font-medium text-zinc-200">Scheduled daily backup</p>
+                <p className="text-[10px] leading-relaxed text-zinc-500">
+                  Full snapshot pushed roughly every 24h even when nothing changed — a heartbeat that proves the repo backup is alive.
+                  {link.lastScheduledAt && <> Last: <span className="text-zinc-400">{fmtDate(link.lastScheduledAt)}</span>.</>}
+                </p>
+              </div>
+            </div>
+            <Switch checked={scheduleEnabled} onCheckedChange={toggleSchedule} aria-label="Toggle scheduled backup" />
           </div>
         </CardContent>
       </Card>

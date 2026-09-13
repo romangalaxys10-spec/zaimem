@@ -321,7 +321,10 @@ async function deleteFile(pat: string, full: string, branch: string, path: strin
 }
 
 /** Force a full sync right now. Throws on failure (caller decides logging). */
-export async function syncUser(userId: string, trigger: "pair" | "force" | "auto"): Promise<SyncResult> {
+export async function syncUser(
+  userId: string,
+  trigger: "pair" | "force" | "auto" | "scheduled",
+): Promise<SyncResult> {
   const link = await db.githubLink.findUnique({ where: { userId } });
   if (!link) throw new GhError(400, "GitHub is not paired for this account.");
   const pat = decryptSecret(link.patEnc);
@@ -368,7 +371,8 @@ export async function syncUser(userId: string, trigger: "pair" | "force" | "auto
     });
     await db.syncLog.create({
       data: {
-        userId, action: trigger === "auto" ? "auto" : trigger === "pair" ? "pair" : "force_sync",
+        userId,
+        action: trigger === "auto" ? "auto" : trigger === "pair" ? "pair" : trigger === "scheduled" ? "backup" : "force_sync",
         status: "ok", files: pushed, detail: `${pushed} pushed · ${unchanged} unchanged · ${deleted} removed · ${JSON.stringify(counts)}`,
       },
     });

@@ -116,7 +116,7 @@ async function api<T>(path: string, token: string, init?: RequestInit): Promise<
 
 // ─── Sessions panel ──────────────────────────────────────────────────────────
 
-export function SessionsPanel({ token, refreshToken }: { token: string; refreshToken: () => void }) {
+export function SessionsPanel({ token, refreshToken, focusSessionId, onFocusHandled }: { token: string; refreshToken: () => void; focusSessionId?: string | null; onFocusHandled?: () => void }) {
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [detail, setDetail] = useState<SessionDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -131,6 +131,13 @@ export function SessionsPanel({ token, refreshToken }: { token: string; refreshT
   };
   // load once on mount
   useEffect(() => { load(); }, []);
+
+  // deep-link: open a specific session (e.g. from global search)
+  useEffect(() => {
+    if (!focusSessionId) return;
+    openDetail(focusSessionId);
+    onFocusHandled?.();
+  }, [focusSessionId]);
 
   async function openDetail(id: string) {
     setLoadingDetail(true);

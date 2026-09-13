@@ -19,6 +19,7 @@ import {
   type AuthInfo, fmtTokens,
 } from "./panels";
 import { CloudDbPanel } from "./cloud-db";
+import { GlobalSearch, type SearchTarget } from "./search-bar";
 
 interface DashboardProps {
   token: string;
@@ -30,6 +31,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [tab, setTab] = useState("connect");
+  const [focusSessionId, setFocusSessionId] = useState<string | null>(null);
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -64,6 +66,25 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
     }
   }
 
+  // global search navigation — jump to the right tab, deep-open sessions
+  const handleSearchNavigate = (target: SearchTarget) => {
+    if (target.kind === "session") {
+      setFocusSessionId(target.id);
+      setTab("sessions");
+    } else if (target.kind === "ledger") {
+      if (target.sessionId) {
+        setFocusSessionId(target.sessionId);
+        setTab("sessions");
+      } else {
+        setTab("skills"); // standalone ledger pages live under the smart-skill flow
+      }
+    } else if (target.kind === "memory") {
+      setTab("memory");
+    } else {
+      setTab("skills");
+    }
+  };
+
   const CopyBtn = ({ text, label, small }: { text: string; label: string; small?: boolean }) => (
     <Button
       size="sm"
@@ -95,6 +116,9 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
             </div>
             <span className="font-bold tracking-tight">ZaiMem</span>
           </div>
+
+          {/* global search */}
+          <GlobalSearch token={token} onNavigate={handleSearchNavigate} />
 
           {/* token chip */}
           <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 py-1 pl-2.5 pr-1">
@@ -276,7 +300,12 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
           </TabsContent>
 
           <TabsContent value="sessions">
-            <SessionsPanel token={token} refreshToken={loadInfo} />
+            <SessionsPanel
+              token={token}
+              refreshToken={loadInfo}
+              focusSessionId={focusSessionId}
+              onFocusHandled={() => setFocusSessionId(null)}
+            />
           </TabsContent>
           <TabsContent value="memory">
             <MemoryPanel token={token} refreshToken={loadInfo} />
@@ -295,7 +324,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
 
       <footer className="relative z-10 mt-auto border-t border-white/5 bg-black/30">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-[11px] text-zinc-600 sm:px-6">
-          <span>ZaiMem v1.1 — local vector engine · smart-skill port · streamable-http MCP · GitHub cloud DB</span>
+          <span>ZaiMem v1.2 — local vector engine · smart-skill port · streamable-http MCP · GitHub cloud DB · scheduled backup · global search</span>
           <Badge variant="outline" className="border-white/10 text-[10px] text-zinc-500">token saver: auto-saved in this browser</Badge>
         </div>
       </footer>

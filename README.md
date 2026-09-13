@@ -46,6 +46,8 @@
 - **Token saver** — LLM-powered digests (with extractive fallback) compress long context; token accounting per action.
 - **Smart skills** (zcode-smart-skill integration) — SKILL.md skill registry, auto trigger detection, difficulty budgets (E5: 2/6/12), ledger pages (`notes.md`, `tasks.json`) with size budgets, handoff brief with TRUST clause, reflection schema.
 - **GitHub Cloud DB** — pair a GitHub PAT; a private repo is auto-created and every data change is auto-synced (sha-based idempotent pushes, 4s debounced, full audit trail). Your repo, your data.
+- **Scheduled daily backup** — an optional heartbeat push of a full snapshot ~every 24h (configurable via `ZAIMEM_BACKUP_HOURS`), even when nothing changed — proof the backup pipeline is alive. Toggle it in the Cloud DB panel.
+- **Global search (⌘K)** — one query across all sessions, memories (vector + substring), ledger pages and skills, with jump-to-result navigation.
 
 ## Quick start
 
@@ -70,6 +72,27 @@ bun run dev                 # http://localhost:3000
 ```
 
 Production build: `bun run build` → `bun run start` (standalone output on `localhost:3000`).
+
+### Deploy with Docker (public demo / self-host)
+
+```bash
+# build & run in one command — http://localhost:3000
+docker compose up --build -d
+
+# or without compose
+docker build -t zaimem .
+docker run -d -p 3000:3000 -v zaimem-db:/app/db zaimem
+```
+
+The SQLite database lives in the `zaimem-db` volume (mounted at `/app/db`) and survives rebuilds. Healthcheck, restart policy and env knobs are pre-configured in `docker-compose.yml`.
+
+| Env var | Default | Purpose |
+|---|---|---|
+| `DATABASE_URL` | `file:/app/db/custom.db` | SQLite location (inside the volume) |
+| `ZAIMEM_BACKUP_HOURS` | `24` | Scheduled cloud-DB backup interval (hours, 0.02–168) |
+| `ZAIMEM_SCHEDULER` | `on` | Set `off` to disable the background backup loop |
+
+Expose port 3000 through your reverse proxy / tunnel (Caddy, nginx, Cloudflare Tunnel) for a public demo — all agent traffic goes through the single MCP endpoint `/api/mcp`.
 
 ### First run
 

@@ -1,0 +1,33 @@
+# ZaiMem — one-command production deployment
+# ─────────────────────────────────────────────────────────────────────────────
+#   docker compose up --build -d      → http://localhost:3000
+#
+# The SQLite database lives in the named volume `zaimem-db` (mounted at
+# /app/db). Back it up by copying the volume, or pair a GitHub PAT in the
+# app and let the built-in cloud-DB sync mirror everything for you.
+
+services:
+  zaimem:
+    build: .
+    container_name: zaimem
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # SQLite inside the mounted volume — survives container rebuilds
+      - DATABASE_URL=file:/app/db/custom.db
+      # scheduled cloud-DB backup interval in hours (default 24)
+      # - ZAIMEM_BACKUP_HOURS=24
+      # set to "off" to disable the background backup scheduler
+      # - ZAIMEM_SCHEDULER=on
+    volumes:
+      - zaimem-db:/app/db
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  zaimem-db:
