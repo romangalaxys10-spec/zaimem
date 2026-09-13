@@ -1,0 +1,7 @@
+{
+  "name": "gen-scripts",
+  "private": true,
+  "dependencies": {
+    "docx": "^9"
+  }
+}
