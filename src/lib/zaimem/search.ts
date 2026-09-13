@@ -53,8 +53,34 @@ export interface GlobalSearchResults {
   memories: MemoryHit[];
   ledger: LedgerHit[];
   skills: SkillHit[];
+  filters: { kind: SearchKind; range: SearchRange };
   total: number;
   tookMs: number;
+}
+
+// ── result filters (kind + date range) ───────────────────────────────────────
+export const SEARCH_KINDS = ["all", "sessions", "memories", "ledger", "skills"] as const;
+export const SEARCH_RANGES = ["all", "24h", "7d", "30d", "90d", "365d"] as const;
+export type SearchKind = (typeof SEARCH_KINDS)[number];
+export type SearchRange = (typeof SEARCH_RANGES)[number];
+
+export interface SearchFilters {
+  kind?: SearchKind;
+  range?: SearchRange;
+}
+
+const RANGE_MS: Record<Exclude<SearchRange, "all">, number> = {
+  "24h": 24 * 3_600_000,
+  "7d": 7 * 86_400_000,
+  "30d": 30 * 86_400_000,
+  "90d": 90 * 86_400_000,
+  "365d": 365 * 86_400_000,
+};
+
+function cutoff(range: SearchRange | undefined): Date | null {
+  if (!range || range === "all") return null;
+  const ms = RANGE_MS[range];
+  return ms ? new Date(Date.now() - ms) : null;
 }
 
 const LIMITS = { sessions: 8, memories: 8, ledger: 8, skills: 6 };
@@ -79,23 +105,33 @@ function matchCount(hay: string, ts: string[]): number {
   return ts.reduce((n, t) => (l.includes(t) ? n + 1 : n), 0);
 }
 
-export async function globalSearch(userId: string, rawQuery: string): Promise<GlobalSearchResults> {
+export async function globalSearch(userId: string, rawQuery: string, filters: SearchFilters = {}): Promise<GlobalSearchResults> {
   const t0 = Date.now();
   const q = rawQuery.trim().slice(0, 200);
   const ts = terms(q);
-  const empty: GlobalSearchResults = { q, sessions: [], memories: [], ledger: [], skills: [], total: 0, tookMs: 0 };
+  const kind: SearchKind = filters.kind ?? "all";
+  const range: SearchRange = filters.range ?? "all";
+  const since = cutoff(range);
+  const appliedFilters = { kind, range };
+  const empty: GlobalSearchResults = { q, sessions: [], memories: [], ledger: [], skills: [], filters: appliedFilters, total: 0, tookMs: 0 };
   if (!q || ts.length === 0) return empty;
 
   // phrase-first: also try the raw query for multi-word matches
   const phrase = q.toLowerCase();
 
+  // category selector: when kind ≠ all, untouched categories are skipped
+  // entirely (no query, no scoring) so filtered searches stay fast
+  const want = (c: Exclude<SearchKind, "all">) => kind === "all" || kind === c;
+
   // ── sessions ──────────────────────────────────────────────────────────────
-  const sessionRows = await db.session.findMany({
-    where: { userId },
-    orderBy: { updatedAt: "desc" },
-    take: POOL,
-    select: { id: true, title: true, topic: true, summary: true, status: true, turns: true, updatedAt: true, _count: { select: { memories: true } } },
-  });
+  const sessionRows = want("sessions")
+    ? await db.session.findMany({
+        where: { userId, ...(since ? { updatedAt: { gte: since } } : {}) },
+        orderBy: { updatedAt: "desc" },
+        take: POOL,
+        select: { id: true, title: true, topic: true, summary: true, status: true, turns: true, updatedAt: true, _count: { select: { memories: true } } },
+      })
+    : [];
   const sessions: SessionHit[] = sessionRows
     .map((s) => {
       const cTitle = matchCount(s.title, ts) + (s.title.toLowerCase().includes(phrase) ? 2 : 0);
@@ -119,15 +155,17 @@ export async function globalSearch(userId: string, rawQuery: string): Promise<Gl
   // ── memories (vector + substring merge, cross-session) ───────────────────
   let memHits: RecallHit[] = [];
   try {
-    memHits = await recallMemories({ userId, query: q, limit: LIMITS.memories });
+    if (want("memories")) memHits = await recallMemories({ userId, query: q, limit: LIMITS.memories });
   } catch { /* vector path optional — substring below still applies */ }
 
-  const memPool = await db.memory.findMany({
-    where: { userId },
-    orderBy: { updatedAt: "desc" },
-    take: POOL,
-    select: { id: true, kind: true, content: true, keywords: true, importance: true, accessCount: true, sessionId: true, createdAt: true, updatedAt: true },
-  });
+  const memPool = want("memories")
+    ? await db.memory.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+        take: POOL,
+        select: { id: true, kind: true, content: true, keywords: true, importance: true, accessCount: true, sessionId: true, createdAt: true, updatedAt: true },
+      })
+    : [];
   const byId = new Map<string, RecallHit>(memHits.map((h) => [h.id, h]));
   for (const m of memPool) {
     if (byId.has(m.id)) continue;
@@ -140,9 +178,10 @@ export async function globalSearch(userId: string, rawQuery: string): Promise<Gl
     });
   }
   // vector recall is fuzzy — drop hits whose score is too low to be a real
-  // match (recency/importance boosts alone can clear the recall threshold)
+  // match (recency/importance boosts alone can clear the recall threshold);
+  // date range applies to the merged pool (both paths carry createdAt)
   const topMems = [...byId.values()]
-    .filter((h) => h.score >= 0.3 || matchCount(h.content, ts) > 0 || h.content.toLowerCase().includes(phrase))
+    .filter((h) => (!since || h.createdAt >= since) && (h.score >= 0.3 || matchCount(h.content, ts) > 0 || h.content.toLowerCase().includes(phrase)))
     .sort((a, b) => b.score - a.score)
     .slice(0, LIMITS.memories);
 
@@ -162,12 +201,14 @@ export async function globalSearch(userId: string, rawQuery: string): Promise<Gl
   }));
 
   // ── ledger pages ──────────────────────────────────────────────────────────
-  const ledgerRows = await db.ledgerPage.findMany({
-    where: { userId },
-    orderBy: { updatedAt: "desc" },
-    take: POOL,
-    select: { id: true, path: true, content: true, sessionId: true, updatedAt: true },
-  });
+  const ledgerRows = want("ledger")
+    ? await db.ledgerPage.findMany({
+        where: { userId, ...(since ? { updatedAt: { gte: since } } : {}) },
+        orderBy: { updatedAt: "desc" },
+        take: POOL,
+        select: { id: true, path: true, content: true, sessionId: true, updatedAt: true },
+      })
+    : [];
   const ledger: LedgerHit[] = ledgerRows
     .map((p) => {
       const c = matchCount(p.content, ts) + (p.content.toLowerCase().includes(phrase) ? 2 : 0);
@@ -182,11 +223,13 @@ export async function globalSearch(userId: string, rawQuery: string): Promise<Gl
     .slice(0, LIMITS.ledger);
 
   // ── skills ────────────────────────────────────────────────────────────────
-  const skillRows = await db.skill.findMany({
-    where: { userId },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, description: true, body: true, enabled: true },
-  });
+  const skillRows = want("skills")
+    ? await db.skill.findMany({
+        where: { userId, ...(since ? { updatedAt: { gte: since } } : {}) },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, description: true, body: true, enabled: true },
+      })
+    : [];
   const skills: SkillHit[] = skillRows
     .map((k) => {
       const c = matchCount(k.name + " " + k.description + " " + k.body, ts);
@@ -199,6 +242,6 @@ export async function globalSearch(userId: string, rawQuery: string): Promise<Gl
     .filter((x): x is SkillHit => !!x)
     .slice(0, LIMITS.skills);
 
-  const results = { q, sessions, memories, ledger, skills, total: sessions.length + memories.length + ledger.length + skills.length, tookMs: Date.now() - t0 };
+  const results = { q, sessions, memories, ledger, skills, filters: appliedFilters, total: sessions.length + memories.length + ledger.length + skills.length, tookMs: Date.now() - t0 };
   return results;
 }

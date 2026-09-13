@@ -323,6 +323,70 @@ async function main() {
   const search4 = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent("onboarding workflow")}`, { headers: h })).json();
   check("search finds global ledger page", search4.ledger?.some((p: any) => p.path === "workflows.md" && p.sessionId === null), search4.ledger);
 
+  // ── 10b. search result filters (kind + date range) ─
+  // probe session with a unique marker — guarantees a session-only term
+  const mk = `sxf${Date.now().toString(36)}`;
+  const probe = await rpc("tools/call", { name: "zaimem_sync_session", arguments: { title: `Filter probe ${mk}`, topic: `unique session marker ${mk}` } }, token, 41, mcpSession);
+  check("probe session synced", (probe.result?.content?.[0]?.text ?? "").includes("session synced"), probe.error ?? probe.result?.content?.[0]?.text);
+
+  const fSess = await (await fetch(`${BASE}/api/search?q=${mk}&kind=sessions`, { headers: h })).json();
+  check(
+    "filter kind=sessions → only sessions",
+    (fSess.sessions?.length ?? 0) >= 1 && (fSess.memories?.length ?? 0) === 0 && (fSess.ledger?.length ?? 0) === 0 && (fSess.skills?.length ?? 0) === 0,
+    { s: fSess.sessions?.length, m: fSess.memories?.length, l: fSess.ledger?.length, k: fSess.skills?.length },
+  );
+  const fMem = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent("violet")}&kind=memories`, { headers: h })).json();
+  check(
+    "filter kind=memories → only memories",
+    (fMem.memories?.length ?? 0) >= 1 && (fMem.sessions?.length ?? 0) === 0 && (fMem.skills?.length ?? 0) === 0,
+    { s: fMem.sessions?.length, m: fMem.memories?.length, k: fMem.skills?.length },
+  );
+  const fSkill = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent("smart")}&kind=skills`, { headers: h })).json();
+  check(
+    "filter kind=skills → only skills",
+    (fSkill.skills?.length ?? 0) >= 1 && (fSkill.memories?.length ?? 0) === 0 && (fSkill.sessions?.length ?? 0) === 0,
+    { s: fSkill.sessions?.length, m: fSkill.memories?.length, k: fSkill.skills?.length },
+  );
+  check("response echoes applied filters", fSess.filters?.kind === "sessions" && fSess.filters?.range === "all", fSess.filters);
+
+  const badKind = await fetch(`${BASE}/api/search?q=x&kind=bogus`, { headers: h });
+  check("invalid kind → 400", badKind.status === 400, badKind.status);
+  const badRange = await fetch(`${BASE}/api/search?q=x&range=xyz`, { headers: h });
+  check("invalid range → 400", badRange.status === 400, badRange.status);
+
+  // date range: import an antique memory (createdAt preserved) — must be
+  // invisible within 30d but visible with range=365d; marker is per-run so
+  // repeated suite runs always create (not dedupe) the memory
+  const mk2 = `zxq${Date.now().toString(36)}`;
+  const antique = {
+    content: `Antique vault note ${mk2} refers to the old cellar inventory.`,
+    kind: "fact",
+    importance: 0.5,
+    createdAt: new Date(Date.now() - 100 * 86_400_000).toISOString(),
+  };
+  const impRes = await fetch(`${BASE}/api/memories/import`, {
+    method: "POST",
+    headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify([antique]),
+  });
+  const imp = await impRes.json().catch(() => ({}));
+  check("antique memory imported", impRes.ok && ((imp.imported ?? 0) + (imp.merged ?? 0) + (imp.deduped ?? 0)) >= 1, { status: impRes.status, ...imp });
+
+  const fRecent = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent(`antique vault ${mk2}`)}&range=30d`, { headers: h })).json();
+  check(
+    "range=30d excludes old memory",
+    !(fRecent.memories ?? []).some((m: any) => m.content.includes(mk2)),
+    fRecent.memories?.length,
+  );
+  const fAll = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent(`antique vault ${mk2}`)}&range=365d`, { headers: h })).json();
+  check(
+    "range=365d includes old memory",
+    (fAll.memories ?? []).some((m: any) => m.content.includes(mk2)),
+    fAll.memories?.map((m: any) => m.content.slice(0, 40)),
+  );
+  const f24h = await (await fetch(`${BASE}/api/search?q=${encodeURIComponent("violet")}&range=24h`, { headers: h })).json();
+  check("range=24h keeps fresh memories", (f24h.memories?.length ?? 0) >= 1, f24h.memories?.length);
+
   const ghStatus2 = await (await fetch(`${BASE}/api/github`, { headers: h })).json();
   check("github status shape intact (schedule fields only when linked)", ghStatus2.linked === false && ghStatus2.link === null);
 

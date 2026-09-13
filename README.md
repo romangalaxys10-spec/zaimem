@@ -1,6 +1,7 @@
 # ZaiMem
 
 [![CI](https://img.shields.io/github/actions/workflow/status/romangalaxys10-spec/zaimem/ci.yml?style=flat-square&label=CI&logo=github&logoColor=white)](https://github.com/romangalaxys10-spec/zaimem/actions/workflows/ci.yml)
+[![Docker image](https://img.shields.io/badge/ghcr.io-zaimem-2496ed?style=flat-square&logo=docker&logoColor=white)](https://github.com/romangalaxys10-spec/zaimem/pkgs/container/zaimem)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=flat-square)](./LICENSE)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
@@ -47,7 +48,7 @@
 - **Smart skills** (zcode-smart-skill integration) — SKILL.md skill registry, auto trigger detection, difficulty budgets (E5: 2/6/12), ledger pages (`notes.md`, `tasks.json`) with size budgets, handoff brief with TRUST clause, reflection schema.
 - **GitHub Cloud DB** — pair a GitHub PAT; a private repo is auto-created and every data change is auto-synced (sha-based idempotent pushes, 4s debounced, full audit trail). Your repo, your data.
 - **Scheduled daily backup** — an optional heartbeat push of a full snapshot ~every 24h (configurable via `ZAIMEM_BACKUP_HOURS`), even when nothing changed — proof the backup pipeline is alive. Toggle it in the Cloud DB panel.
-- **Global search (⌘K)** — one query across all sessions, memories (vector + substring), ledger pages and skills, with jump-to-result navigation.
+- **Global search (⌘K)** — one query across all sessions, memories (vector + substring), ledger pages and skills, with jump-to-result navigation. Filter results by kind (sessions / memories / ledger / skills) and by date range (24 h → 1 year) right from the command bar.
 
 ## Quick start
 
@@ -75,14 +76,22 @@ Production build: `bun run build` → `bun run start` (standalone output on `loc
 
 ### Deploy with Docker (public demo / self-host)
 
+Every push to `main` publishes a fresh image to GHCR via Actions (`docker.yml`):
+
 ```bash
-# build & run in one command — http://localhost:3000
+# pull the prebuilt image and run — http://localhost:3000
+docker pull ghcr.io/romangalaxys10-spec/zaimem:latest
+docker run -d -p 3000:3000 -v zaimem-db:/app/db ghcr.io/romangalaxys10-spec/zaimem:latest
+
+# or build & run from source in one command
 docker compose up --build -d
 
 # or without compose
 docker build -t zaimem .
 docker run -d -p 3000:3000 -v zaimem-db:/app/db zaimem
 ```
+
+Image tags: `latest` (default branch), `vX.Y.Z` / `vX.Y` (git tags), short `sha-*`, and the branch name. Browse all tags on the [package page](https://github.com/romangalaxys10-spec/zaimem/pkgs/container/zaimem).
 
 The SQLite database lives in the `zaimem-db` volume (mounted at `/app/db`) and survives rebuilds. Healthcheck, restart policy and env knobs are pre-configured in `docker-compose.yml`.
 

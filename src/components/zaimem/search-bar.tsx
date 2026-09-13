@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, Loader2, MessageSquare, Database, FileText, Zap, CornerDownLeft } from "lucide-react";
+import { Search, Loader2, MessageSquare, Database, FileText, Zap, CornerDownLeft, SlidersHorizontal } from "lucide-react";
 import { fmtDate } from "./panels";
 
 export interface SearchResults {
@@ -21,6 +21,26 @@ export type SearchTarget =
   | { kind: "ledger"; sessionId: string | null }
   | { kind: "skill" };
 
+// result filters (mirrors server-side SearchFilters)
+export type SearchKindFilter = "all" | "sessions" | "memories" | "ledger" | "skills";
+export type SearchRangeFilter = "all" | "24h" | "7d" | "30d" | "90d" | "365d";
+
+const KIND_CHIPS: { value: SearchKindFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "sessions", label: "Sessions" },
+  { value: "memories", label: "Memories" },
+  { value: "ledger", label: "Ledger" },
+  { value: "skills", label: "Skills" },
+];
+const RANGE_CHIPS: { value: SearchRangeFilter; label: string }[] = [
+  { value: "all", label: "Any time" },
+  { value: "24h", label: "24 h" },
+  { value: "7d", label: "7 d" },
+  { value: "30d", label: "30 d" },
+  { value: "90d", label: "90 d" },
+  { value: "365d", label: "1 y" },
+];
+
 interface GlobalSearchProps {
   token: string;
   /** navigate the dashboard to the right tab (and optionally open a session) */
@@ -29,9 +49,12 @@ interface GlobalSearchProps {
 
 export function GlobalSearch({ token, onNavigate }: GlobalSearchProps) {
   const [query, setQuery] = useState("");
+  const [kind, setKind] = useState<SearchKindFilter>("all");
+  const [range, setRange] = useState<SearchRangeFilter>("all");
   const [results, setResults] = useState<SearchResults | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const filtersActive = kind !== "all" || range !== "all";
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const seqRef = useRef(0);
@@ -71,7 +94,7 @@ export function GlobalSearch({ token, onNavigate }: GlobalSearchProps) {
     const t = setTimeout(async () => {
       const seq = ++seqRef.current;
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&kind=${kind}&range=${range}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json().catch(() => ({}));
@@ -86,7 +109,7 @@ export function GlobalSearch({ token, onNavigate }: GlobalSearchProps) {
       }
     }, 260);
     return () => clearTimeout(t);
-  }, [query, token]);
+  }, [query, token, kind, range]);
 
   const go = useCallback(
     (target: SearchTarget) => {
@@ -115,6 +138,7 @@ export function GlobalSearch({ token, onNavigate }: GlobalSearchProps) {
           aria-label="Search sessions, memories, ledger and skills"
           className="h-full w-full bg-transparent text-xs text-zinc-200 outline-none placeholder:text-zinc-600"
         />
+        {filtersActive && <SlidersHorizontal className="h-3 w-3 shrink-0 text-violet-400" aria-hidden />}
         <kbd className="hidden shrink-0 rounded border border-white/10 bg-black/40 px-1 font-mono text-[9px] text-zinc-500 sm:block">⌘K</kbd>
       </div>
 
@@ -127,9 +151,24 @@ export function GlobalSearch({ token, onNavigate }: GlobalSearchProps) {
             transition={{ duration: 0.14 }}
             className="absolute right-0 top-full z-40 mt-2 max-h-[62vh] w-[min(92vw,460px)] overflow-y-auto rounded-xl border border-white/10 bg-[#0d0d14]/98 p-2 shadow-2xl shadow-black/60 backdrop-blur-md [scrollbar-color:rgb(113_113_122)_transparent] [scrollbar-width:thin]"
           >
+            {/* result filters: kind + date range */}
+            <div className="mb-1 flex flex-wrap items-center gap-1 border-b border-white/5 px-2 pb-2 pt-1">
+              {KIND_CHIPS.map((c) => (
+                <Chip key={c.value} active={kind === c.value} onClick={() => setKind(c.value)}>{c.label}</Chip>
+              ))}
+              <span className="mx-1 h-3.5 w-px bg-white/10" aria-hidden />
+              {RANGE_CHIPS.map((c) => (
+                <Chip key={c.value} active={range === c.value} onClick={() => setRange(c.value)}>{c.label}</Chip>
+              ))}
+            </div>
+
             {!has && !loading && (
               <p className="px-3 py-6 text-center text-xs text-zinc-500">
-                {results ? "No matches across your sessions, memories, ledger or skills." : "Type at least 2 characters."}
+                {results
+                  ? filtersActive
+                    ? "No matches with the current filters — try widening the type or date range."
+                    : "No matches across your sessions, memories, ledger or skills."
+                  : "Type at least 2 characters."}
               </p>
             )}
 
@@ -186,6 +225,22 @@ export function GlobalSearch({ token, onNavigate }: GlobalSearchProps) {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-full border px-2 py-0.5 text-[10px] leading-4 transition-colors ${
+        active
+          ? "border-violet-500/50 bg-violet-500/15 text-violet-300"
+          : "border-white/10 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
