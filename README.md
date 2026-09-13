@@ -19,7 +19,7 @@
 
 > 🌐 **[Launch the live demo →](https://zaimem.space-z.ai/)** — no signup: open the app and a private `zm_…` token is generated for you instantly. Paste the magic prompt into any chat.z.ai agent chat and watch the memory, context boost and token savings appear in your dashboard.
 
-**Session memory & context enhancer for [chat.z.ai](https://chat.z.ai)** — an MCP-powered web service that gives any chat.z.ai agent persistent **vector memory**, automatic **context enhancement**, **token saving**, and **smart-skill orchestration** — with every user's data mirrored to their **own private GitHub repo** as a human-readable cloud database.
+**Session memory & context enhancer for AI agents like [chat.z.ai](https://chat.z.ai)** — an MCP-powered web service that gives any chat.z.ai agent persistent **vector memory**, automatic **context enhancement**, **token saving**, and **smart-skill orchestration** — with every user's data mirrored to their **own private GitHub repo** as a human-readable cloud database.
 
 ```
 ┌──────────────┐   1. visit    ┌───────────────────┐  2. auto private token
