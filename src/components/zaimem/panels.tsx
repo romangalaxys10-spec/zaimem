@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   MessageSquare, Database, Gauge, Zap, Search, Trash2, Loader2,
-  FileText, Layers, Clock, TrendingUp, Activity,
+  FileText, Layers, Clock, TrendingUp, Activity, Download, Upload,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -248,6 +248,8 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
   const [memories, setMemories] = useState<MemoryItem[] | null>(null);
   const [mode, setMode] = useState<string>("recent");
   const [searching, setSearching] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const loadRecent = async () => {
     try {
@@ -287,6 +289,49 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
     }
   }
 
+  async function exportMemories() {
+    try {
+      const res = await fetch("/api/memories/export", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `zaimem-memories-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: "Memories exported", description: "Portable JSON downloaded — re-importable on any ZaiMem account." });
+    } catch (e) {
+      toast({ title: "Export failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
+    }
+  }
+
+  async function importMemories(file: File) {
+    setImporting(true);
+    try {
+      const parsed = JSON.parse(await file.text());
+      const items = Array.isArray(parsed) ? parsed : parsed?.memories;
+      if (!Array.isArray(items) || items.length === 0) throw new Error("No memories found — expected a ZaiMem export file");
+      const res = await api<{ total: number; imported: number; merged: number; deduped: number; skipped: number }>(
+        "/api/memories/import", token,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memories: items }) },
+      );
+      const parts = [`${res.imported} imported`];
+      if (res.merged) parts.push(`${res.merged} merged`);
+      if (res.deduped) parts.push(`${res.deduped} duplicates skipped`);
+      if (res.skipped) parts.push(`${res.skipped} invalid`);
+      toast({ title: "Import complete", description: parts.join(" · ") });
+      await loadRecent();
+      refreshToken();
+    } catch (e) {
+      toast({ title: "Import failed", description: e instanceof Error ? e.message : "Invalid JSON file", variant: "destructive" });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div>
       <div className="mb-4 flex gap-2">
@@ -304,9 +349,33 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
           {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
         </Button>
       </div>
-      <p className="mb-3 text-[11px] text-zinc-600">
-        {mode === "vector_search" ? "cosine-similarity ranked · recency + keyword boosts applied" : "most recently updated memories"}
-      </p>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] text-zinc-600">
+          {mode === "vector_search" ? "cosine-similarity ranked · recency + keyword boosts applied" : "most recently updated memories"}
+        </p>
+        <div className="flex shrink-0 gap-1.5">
+          <Button
+            size="sm" variant="outline" onClick={exportMemories}
+            className="h-7 border-white/10 bg-white/5 px-2.5 text-[11px] text-zinc-300 hover:bg-white/10"
+          >
+            <Download className="mr-1 h-3 w-3" /> Export
+          </Button>
+          <Button
+            size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={importing}
+            className="h-7 border-white/10 bg-white/5 px-2.5 text-[11px] text-zinc-300 hover:bg-white/10"
+          >
+            {importing ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Upload className="mr-1 h-3 w-3" />} Import
+          </Button>
+          <input
+            ref={fileRef} type="file" accept="application/json,.json" className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importMemories(f);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </div>
 
       {memories === null ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-violet-400" /></div>
@@ -424,6 +493,7 @@ const ACTION_LABELS: Record<string, string> = {
   sync_session: "Session syncs",
   detect_skill: "Skill detections",
   summary: "Session summaries",
+  import: "Memories imported",
 };
 
 export function StatsPanel({ token }: { token: string }) {

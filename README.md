@@ -12,6 +12,8 @@
 [![The Claw Blog](https://img.shields.io/badge/The_Claw-Blog-10b981?style=for-the-badge)](https://claw.rommark.dev)
 [![Author of Z-Assist Project](https://img.shields.io/badge/Author_of-Z--Assist_Project-f59e0b?style=for-the-badge)](https://zhelp.space-z.ai/)
 
+<img src="docs/social-preview.png" alt="ZaiMem — session memory & context enhancer for chat.z.ai" width="100%" />
+
 **Session memory & context enhancer for [chat.z.ai](https://chat.z.ai)** — an MCP-powered web service that gives any chat.z.ai agent persistent **vector memory**, automatic **context enhancement**, **token saving**, and **smart-skill orchestration** — with every user's data mirrored to their **own private GitHub repo** as a human-readable cloud database.
 
 ```
