@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   BrainCircuit, KeyRound, DatabaseZap, Gauge, ScanSearch,
   Layers, ShieldCheck, Sparkles, Loader2, ArrowRight, Github,
+  Globe, Send, Newspaper, LifeBuoy,
 } from "lucide-react";
 
 const FEATURES = [
@@ -68,6 +69,14 @@ const STEPS = [
   { n: "02", title: "Add the MCP endpoint", body: "In chat.z.ai agent mode, add the ZaiMem MCP server with your endpoint URL + token." },
   { n: "03", title: "Paste the magic prompt", body: "The dashboard hands you a ready-made prompt containing the endpoint and your key." },
   { n: "04", title: "Chat enhanced", body: "Session auto-syncs: memories boot, context gets boosted, tokens get saved, skills auto-trigger." },
+];
+
+const HERO_BADGES = [
+  { icon: Sparkles, label: "Built with GLM 5.3 Flash", href: "https://z.ai/subscribe?ic=ROK78RJKNW", color: "text-violet-400" },
+  { icon: Globe, label: "Lead by Roman · Rommark.Dev", href: "https://rommark.dev", color: "text-rose-400" },
+  { icon: Send, label: "Telegram Blog", href: "https://t.me/VibeCodePrompterSystem", color: "text-sky-400" },
+  { icon: Newspaper, label: "The Claw Blog", href: "https://claw.rommark.dev", color: "text-emerald-400" },
+  { icon: LifeBuoy, label: "Author of Z-Assist Project", href: "https://zhelp.space-z.ai/", color: "text-amber-400" },
 ];
 
 interface LandingProps {
@@ -166,6 +175,27 @@ export function Landing({ onToken }: LandingProps) {
               context enhancer and a token saver. Generate a token, paste one prompt into
               agent mode — your session syncs itself.
             </p>
+          </motion.div>
+
+          {/* project badges */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mt-7 flex flex-wrap items-center justify-center gap-2"
+          >
+            {HERO_BADGES.map((b) => (
+              <a
+                key={b.href}
+                href={b.href}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs text-zinc-400 transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.08] hover:text-zinc-100"
+              >
+                <b.icon className={`h-3.5 w-3.5 ${b.color}`} />
+                {b.label}
+              </a>
+            ))}
           </motion.div>
 
           <motion.div

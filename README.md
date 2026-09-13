@@ -1,5 +1,17 @@
 # ZaiMem
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=flat-square)](./LICENSE)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![MCP](https://img.shields.io/badge/Model%20Context-Protocol-8b5cf6?style=flat-square)](https://modelcontextprotocol.io)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-22c55e?style=flat-square)](https://github.com/romangalaxys10-spec/zaimem/pulls)
+
+[![Built with GLM 5.3 Flash](https://img.shields.io/badge/Built_with-GLM_5.3_Flash-8b5cf6?style=for-the-badge)](https://z.ai/subscribe?ic=ROK78RJKNW)
+[![Lead by Roman · Rommark.Dev](https://img.shields.io/badge/Lead_by-Roman_·_Rommark.Dev-f43f5e?style=for-the-badge)](https://rommark.dev)
+[![Telegram Blog](https://img.shields.io/badge/Telegram-Blog-229ed9?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/VibeCodePrompterSystem)
+[![The Claw Blog](https://img.shields.io/badge/The_Claw-Blog-10b981?style=for-the-badge)](https://claw.rommark.dev)
+[![Author of Z-Assist Project](https://img.shields.io/badge/Author_of-Z--Assist_Project-f59e0b?style=for-the-badge)](https://zhelp.space-z.ai/)
+
 **Session memory & context enhancer for [chat.z.ai](https://chat.z.ai)** — an MCP-powered web service that gives any chat.z.ai agent persistent **vector memory**, automatic **context enhancement**, **token saving**, and **smart-skill orchestration** — with every user's data mirrored to their **own private GitHub repo** as a human-readable cloud database.
 
 ```
@@ -34,21 +46,31 @@
 
 ## Quick start
 
+### Clone & run locally
+
 ```bash
-# 1. install deps
+# 1. clone the repo
+git clone https://github.com/romangalaxys10-spec/zaimem.git
+cd zaimem
+
+# 2. install dependencies (bun ≥ 1.2 recommended; npm/pnpm work too)
 bun install
 
-# 2. configure env
+# 3. configure env
 cp .env.example .env        # SQLite by default
 
-# 3. create the database schema
+# 4. create the database schema
 bun run db:push
 
-# 4. run
+# 5. run
 bun run dev                 # http://localhost:3000
 ```
 
-Then: open the app → **Get my private token** → log in → copy the **Magic Prompt** → paste into a new chat.z.ai **agent-mode** chat.
+Production build: `bun run build` → `bun run start` (standalone output on `localhost:3000`).
+
+### First run
+
+Then open the app → **Get my private token** → log in → copy the **Magic Prompt** → paste into a new chat.z.ai **agent-mode** chat.
 
 ## MCP endpoint
 
@@ -151,6 +173,16 @@ bun scripts/e2e-github-unit.ts   # 26 engine checks — full sync engine vs mock
 - Login tokens and API keys are high-entropy random strings; API keys authenticate every MCP call.
 - GitHub PATs are encrypted at rest (AES-256-GCM, scrypt-derived key) and never returned by the API.
 - The SQLite database and `.env` are local-only and excluded from version control.
+
+## Community & links
+
+| | |
+|---|---|
+| ⚡ **Built with** | [GLM 5.3 Flash — z.ai](https://z.ai/subscribe?ic=ROK78RJKNW) |
+| 👑 **Lead by** | [Roman · Rommark.Dev](https://rommark.dev) |
+| ✈️ **Telegram Blog** | [@VibeCodePrompterSystem](https://t.me/VibeCodePrompterSystem) |
+| 🟢 **The Claw Blog** | [claw.rommark.dev](https://claw.rommark.dev) |
+| 🛟 **Author of** | [Z-Assist Project](https://zhelp.space-z.ai/) |
 
 ## License
 
