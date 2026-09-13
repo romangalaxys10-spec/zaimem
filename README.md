@@ -1,5 +1,6 @@
 # ZaiMem
 
+[![CI](https://img.shields.io/github/actions/workflow/status/romangalaxys10-spec/zaimem/ci.yml?style=flat-square&label=CI&logo=github&logoColor=white)](https://github.com/romangalaxys10-spec/zaimem/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=flat-square)](./LICENSE)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
