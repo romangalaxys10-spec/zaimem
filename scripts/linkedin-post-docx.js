@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * ZaiMem — LinkedIn launch post → docx (copywriting scene, Profile B, no cover)
  * Output: /home/z/my-project/download/zaimem-linkedin-post.docx

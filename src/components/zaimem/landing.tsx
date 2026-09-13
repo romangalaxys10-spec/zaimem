@@ -493,7 +493,7 @@ export function Landing({ onToken }: LandingProps) {
             transition={{ duration: 0.6, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
             className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-zinc-400 sm:text-lg"
           >
-            ZaiMem gives every chat.z.ai agent a persistent vector memory, an automatic
+            ZaiMem gives every AI agent a persistent vector memory, an automatic
             context enhancer and a token saver. Generate a token, paste one prompt into
             agent mode — your session syncs itself.
           </motion.p>
