@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ZaiMem: Session Memory & Context Enhancer for chat.z.ai ────────────────
+
+model User {
+  id          String        @id @default(cuid())
+  token       String        @unique // zm_<64hex> private access token
+  label       String? // optional display label
+  createdAt   DateTime      @default(now())
+  lastSeenAt  DateTime      @default(now())
+  sessions    Session[]
+  memories    Memory[]
+  skills      Skill[]
+  ledgerPages LedgerPage[]
+  usageStats  UsageStat[]
+  github      GithubLink?
+  syncLogs    SyncLog[]
+}
+
+model Session {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  externalId  String? // chat.z.ai session id when provided by the agent
+  title       String       @default("Untitled session")
+  topic       String?
+  status      String       @default("active") // active | summarized | archived
+  summary     String? // distilled end-of-session digest
+  metadata    String? // JSON blob (client info, tags…)
+  turns       Int          @default(0)
+  tokensSaved Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memories    Memory[]
+  ledgerPages LedgerPage[]
+
+  @@index([userId, updatedAt])
+}
+
+model Memory {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId   String?
+  session     Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  kind        String   @default("fact") // fact | decision | preference | reflection | workflow | summary
+  content     String
+  keywords    String? // comma-separated keywords
+  embedding   String // JSON float[] — local hashed n-gram vector
+  importance  Float    @default(0.5)
+  accessCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, kind])
+  @@index([sessionId])
+}
+
+// Smart-skill integration: SKILL.md registry (builtin + user skills)
+model Skill {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String // e.g. "smart"
+  description String // description doubles as trigger spec (SKILL.md convention)
+  triggers    String // JSON string[] — trigger phrases/regex seeds
+  body        String // full SKILL.md body (markdown protocol)
+  source      String   @default("builtin") // builtin | user
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, name])
+}
+
+// zcode-smart-skill filesystem ledger (.smart/<slug>/) mapped to server pages
+model LedgerPage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String?
+  session   Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  path      String // "notes.md" | "tasks.json" | "workflows.md" | custom
+  content   String
+  budget    Int? // size budget (words/chars per smart-skill discipline)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, sessionId, path])
+}
+
+model UsageStat {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String // save_tokens | remember | recall | enhance | summary | detect_skill
+  tokensIn    Int      @default(0)
+  tokensOut   Int      @default(0)
+  tokensSaved Int      @default(0)
+  detail      String? // JSON detail
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ─── GitHub Cloud DB: user-paired private repo mirroring all ZaiMem data ────
+
+model GithubLink {
+  id         String    @id @default(cuid())
+  userId     String    @unique // one cloud DB per user
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patEnc     String // AES-256-GCM encrypted GitHub Personal Access Token
+  patHint    String // last 4 chars for display, e.g. ••••ab12
+  login      String // GitHub username (denormalized for UI)
+  repoName   String // e.g. zaimem-cloud-db
+  repoFull   String // e.g. octocat/zaimem-cloud-db
+  repoUrl    String // html_url
+  branch     String    @default("main")
+  autoSync   Boolean   @default(true) // auto-push after every data change
+  status     String    @default("active") // active | error | syncing
+  lastError  String?
+  lastSyncAt DateTime?
+  syncCount  Int       @default(0)
+  createdAt  DateTime  @default(now())
+}
+
+model SyncLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String // pair | create_repo | push | force_sync | unpair | auto | error
+  status    String // ok | error
+  files     Int      @default(0)
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
