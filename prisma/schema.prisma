@@ -25,6 +25,19 @@ model User {
   syncLogs    SyncLog[]
   answerCaches AnswerCache[]
   projects    Project[]
+  toolPackPrefs ToolPackPref[]
+}
+
+/** Per-user MCP tool-pack on/off prefs — missing row = pack enabled. */
+model ToolPackPref {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packId    String // e.g. "meetings" — must match TOOL_PACKS ids
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, packId])
 }
 
 model Session {

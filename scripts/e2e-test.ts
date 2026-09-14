@@ -1,7 +1,9 @@
 /**
  * ZaiMem end-to-end flow test — exercises the full user journey:
- * token issuance → login → MCP handshake → all 12 tools → dashboard APIs.
+ * token issuance → login → MCP handshake → all 33 tools → dashboard APIs.
  */
+import { createServer } from "node:http";
+
 const BASE = "http://localhost:3000";
 
 let failures = 0;
@@ -703,6 +705,154 @@ async function main() {
   check("headroom toggles OFF", (hrOff.result?.content?.[0]?.text ?? "").includes("OFF"), hrOff.result);
   const hrStats = await (await fetch(`${BASE}/api/stats`, { headers: h })).json();
   check("stats counts headroom action", hrStats.byAction?.some((a: any) => a.action === "headroom"), hrStats.byAction?.map((a: any) => a.action));
+
+  // ── 14. Skills section: 8 skills · 8 tool packs · pack gating ──────────────
+  console.log("\n── 14. Skills · tool packs · gating ──────────");
+  const skillsPayload = await (await fetch(`${BASE}/api/skills`, { headers: h })).json();
+  check(
+    "8 SKILL.md skills seeded",
+    (skillsPayload.skills ?? []).length === 8,
+    skillsPayload.skills?.map((s: any) => s.name),
+  );
+  check(
+    "8 tool packs cover all 33 tools",
+    (skillsPayload.packs ?? []).length === 8 &&
+      skillsPayload.packs.reduce((n: number, p: any) => n + p.tools.length, 0) === 33,
+    skillsPayload.packs?.map((p: any) => `${p.id}:${p.tools.length}`),
+  );
+  check(
+    "new builtin skills present",
+    ["meeting-notes", "web-research", "session-continuity", "project-team", "doc-memory"]
+      .every((n) => (skillsPayload.skills ?? []).some((s: any) => s.name === n)),
+    skillsPayload.skills?.map((s: any) => s.name),
+  );
+  check("headroom flag exposed in skills payload", typeof skillsPayload.headroom === "boolean", skillsPayload.headroom);
+  const corePack = (skillsPayload.packs ?? []).find((p: any) => p.id === "core-memory");
+  check("core-memory pack locked & enabled", corePack?.locked === true && corePack?.enabled === true, corePack);
+
+  const packOff = await fetch(`${BASE}/api/skills`, {
+    method: "PATCH", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ packId: "meetings", enabled: false }),
+  });
+  check("pack disable via PATCH ok", packOff.ok);
+  const toolsGated = await rpc("tools/list", {}, token, 200, mcpSession);
+  check("tools/list hides disabled pack (30 tools)", (toolsGated.result?.tools ?? []).length === 30, (toolsGated.result?.tools ?? []).length);
+  const gatedCall = await rpc("tools/call", { name: "zaimem_meetings_list", arguments: {} }, token, 201, mcpSession);
+  const gatedText: string = gatedCall.result?.content?.[0]?.text ?? "";
+  check(
+    "disabled tool call refused with pack hint",
+    gatedCall.result?.isError === true && gatedText.includes("Meeting intelligence"),
+    gatedText.slice(0, 200),
+  );
+  const lockTry = await fetch(`${BASE}/api/skills`, {
+    method: "PATCH", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ packId: "core-memory", enabled: false }),
+  });
+  check("core pack cannot be disabled (409)", lockTry.status === 409, lockTry.status);
+  const packOn = await fetch(`${BASE}/api/skills`, {
+    method: "PATCH", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ packId: "meetings", enabled: true }),
+  });
+  check("pack re-enable ok", packOn.ok);
+  const toolsUngated = await rpc("tools/list", {}, token, 202, mcpSession);
+  check("tools/list back to 33 after re-enable", (toolsUngated.result?.tools ?? []).length === 33, (toolsUngated.result?.tools ?? []).length);
+
+  const hrViaSkills = await fetch(`${BASE}/api/skills`, {
+    method: "PATCH", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ headroom: true, enabled: true }),
+  });
+  const hrViaSkillsBody = await hrViaSkills.json();
+  check("headroom toggled via /api/skills", hrViaSkills.ok && hrViaSkillsBody.headroom === true, hrViaSkillsBody);
+  await fetch(`${BASE}/api/skills`, {
+    method: "PATCH", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ headroom: true, enabled: false }),
+  });
+
+  // ── 15. GitHub rescue import (new account ← old account's repo, mock) ─────
+  console.log("\n── 15. GitHub rescue import (mock) ─────────");
+  const rmk = `rescue${Date.now().toString(36)}`;
+  const b64 = (o: unknown) => ({ content: Buffer.from(JSON.stringify(o, null, 2), "utf8").toString("base64"), encoding: "base64" });
+  const oldMemories = [
+    { id: "m1", sessionId: null, kind: "fact", content: `${rmk} fact — production deploys run on bun 1.2`, keywords: null, importance: 0.7, accessCount: 3, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+    { id: "m2", sessionId: "oldsess1", kind: "preference", content: `${rmk} preference — answers must stay terse`, keywords: null, importance: 0.6, accessCount: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+    { id: "m3", sessionId: "oldsess1", kind: "decision", content: `${rmk} decision — keep SQLite through v1.8`, keywords: null, importance: 0.8, accessCount: 5, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  ];
+  const oldSkills = [
+    { name: `rescue-skill-${rmk}`, description: "skill imported from the previous account", triggers: ["rescue"], source: "user", enabled: true, body: "# Rescue skill\nImported via cloud-DB re-sync." },
+  ];
+  const oldSessions = [
+    { id: "oldsess1", title: `Rescued alpha ${rmk}`, topic: "import test", status: "summarized", summary: `Old account work summary ${rmk}`, turns: 12, tokensSaved: 4300 },
+    { id: "oldsess2", title: `Rescued beta ${rmk}`, topic: "import test", status: "active", summary: null, turns: 4, tokensSaved: 900 },
+  ];
+  const REPO = "octocat-old/zaimem-cloud-db";
+  const mock = createServer((req, res) => {
+    const p = new URL(req.url ?? "/", "http://x").pathname;
+    res.setHeader("Content-Type", "application/json");
+    const ok = (body: unknown) => { res.end(JSON.stringify(body)); };
+    if (p === "/user") return ok({ login: "octocat-old" });
+    if (p === `/repos/${REPO}`) return ok({ full_name: REPO, default_branch: "main", private: true, description: "ZaiMem Cloud DB" });
+    if (p === `/repos/${REPO}/contents/memories.json`) return ok(b64(oldMemories));
+    if (p === `/repos/${REPO}/contents/skills.json`) return ok(b64(oldSkills));
+    if (p === `/repos/${REPO}/git/trees/main`) {
+      return ok({ tree: [
+        { path: "sessions/rescued-alpha-abc123.json", type: "blob", sha: "a" },
+        { path: "sessions/rescued-beta-def456.json", type: "blob", sha: "b" },
+        { path: "README.md", type: "blob", sha: "c" },
+      ] });
+    }
+    if (p === `/repos/${REPO}/contents/sessions/rescued-alpha-abc123.json`) return ok(b64(oldSessions[0]));
+    if (p === `/repos/${REPO}/contents/sessions/rescued-beta-def456.json`) return ok(b64(oldSessions[1]));
+    res.statusCode = 404;
+    return ok({ message: "Not Found" });
+  });
+  await new Promise<void>((r) => mock.listen(8763, "127.0.0.1", r));
+
+  const countsBefore = await (await fetch(`${BASE}/api/github`, { headers: h })).json();
+  const memBefore = countsBefore.counts?.memories ?? 0;
+
+  const importRes = await fetch(`${BASE}/api/github`, {
+    method: "POST", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "import", pat: "ghp_mock0000000000000000000000000000001", repo: REPO }),
+  });
+  const importBody = await importRes.json();
+  check("rescue import ok", importRes.ok && importBody.ok === true, importBody);
+  check("3 memories imported", importBody.import?.memories?.imported === 3, importBody.import);
+  check("2 sessions imported", importBody.import?.sessions?.imported === 2, importBody.import);
+  check("1 skill imported", importBody.import?.skillsImported === 1, importBody.import);
+
+  const importRes2 = await fetch(`${BASE}/api/github`, {
+    method: "POST", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "import", pat: "ghp_mock0000000000000000000000000000001", repo: REPO }),
+  });
+  const importBody2 = await importRes2.json();
+  check(
+    "second import dedupes memories (0 new / 3 merged)",
+    importBody2.import?.memories?.imported === 0 && importBody2.import?.memories?.deduped === 3,
+    importBody2.import,
+  );
+  check("second import skips existing sessions", importBody2.import?.sessions?.skipped === 2, importBody2.import);
+
+  const countsAfter = await (await fetch(`${BASE}/api/github`, { headers: h })).json();
+  check(
+    "account memory count grew by 3",
+    (countsAfter.counts?.memories ?? 0) === memBefore + 3,
+    { before: memBefore, after: countsAfter.counts?.memories },
+  );
+  const sessionsAfter = await (await fetch(`${BASE}/api/sessions`, { headers: h })).json();
+  check(
+    "rescued sessions visible with summaries",
+    (sessionsAfter.sessions ?? []).some((s: any) => s.title === `Rescued alpha ${rmk}` && s.summary?.includes(rmk)),
+    (sessionsAfter.sessions ?? []).slice(0, 3).map((s: any) => s.title),
+  );
+  const skillsAfterImport = await (await fetch(`${BASE}/api/skills`, { headers: h })).json();
+  check(
+    "imported skill present (9 skills now)",
+    (skillsAfterImport.skills ?? []).length === 9 &&
+      (skillsAfterImport.skills ?? []).some((s: any) => s.name === `rescue-skill-${rmk}` && s.source === "imported"),
+    skillsAfterImport.skills?.map((s: any) => s.name),
+  );
+
+  await new Promise<void>((r) => mock.close(() => r()));
 
   console.log(`\n${failures === 0 ? "🎉 ALL CHECKS PASSED" : `❌ ${failures} CHECK(S) FAILED`}`);
   process.exit(failures === 0 ? 0 : 1);

@@ -418,7 +418,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
 
       <footer className="relative z-10 mt-auto border-t border-white/5 bg-black/30">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-[11px] text-zinc-500 sm:px-6">
-          <span>ZaiMem v1.7 — 33 MCP tools · vector memory · smart skills · session handoffs · project agent teams · meeting intelligence · web tools · HEADROOM compression · GitHub cloud DB · scheduled backup · global search · document ingestion · pin & forget</span>
+          <span>ZaiMem v1.7 — 33 MCP tools · 8 togglable tool packs · vector memory · smart skills · session handoffs · project agent teams · meeting intelligence · web tools · HEADROOM compression · GitHub cloud DB · one-PAT account re-sync · scheduled backup · global search · document ingestion · pin & forget</span>
           <Badge variant="outline" className="border-white/10 text-[10px] text-zinc-400">token saver: auto-saved in this browser</Badge>
         </div>
       </footer>

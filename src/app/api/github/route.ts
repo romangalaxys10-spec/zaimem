@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate, extractToken, unauthorized } from "@/lib/zaimem/auth";
 import { db } from "@/lib/db";
-import { pairUser, unpairUser, syncUser, GhError, listSnapshotHistory, restoreFromSnapshot } from "@/lib/zaimem/github";
+import { pairUser, unpairUser, syncUser, GhError, listSnapshotHistory, restoreFromSnapshot, importFromRepo } from "@/lib/zaimem/github";
 
 export const dynamic = "force-dynamic";
 
@@ -70,12 +70,13 @@ export async function GET(req: NextRequest) {
  *                or { action: "toggle", autoSync }
  *                or { action: "toggle_schedule", scheduleEnabled }
  *                or { action: "restore", sha }
+ *                or { action: "import", pat, repo, branch? } — rescue-import on a NEW account
  */
 export async function POST(req: NextRequest) {
   const user = await authenticate(extractToken(req));
   if (!user) return unauthorized();
 
-  const body = await req.json().catch(() => ({} as { action?: string; pat?: string; repoName?: string; autoSync?: boolean; scheduleEnabled?: boolean }));
+  const body = await req.json().catch(() => ({} as { action?: string; pat?: string; repoName?: string; repo?: string; branch?: string; autoSync?: boolean; scheduleEnabled?: boolean }));
 
   try {
     switch (body.action) {
@@ -126,8 +127,19 @@ export async function POST(req: NextRequest) {
         const result = await restoreFromSnapshot(user.id, sha);
         return NextResponse.json({ ok: true, restore: result });
       }
+      case "import": {
+        // new-account rescue: pull an earlier ZaiMem cloud-DB repo in via PAT
+        const pat = String(body.pat ?? "").trim();
+        const repo = String(body.repo ?? "").trim();
+        const branch = typeof body.branch === "string" && body.branch.trim() ? body.branch.trim() : undefined;
+        if (!pat || !repo) {
+          return NextResponse.json({ error: "bad_request", message: "Provide pat + repo (owner/name, as synced by your previous ZaiMem account)." }, { status: 400 });
+        }
+        const result = await importFromRepo(user.id, pat, repo, branch);
+        return NextResponse.json({ ok: true, import: result });
+      }
       default:
-        return NextResponse.json({ error: "bad_request", message: "Unknown action. Use pair | unpair | sync | toggle | toggle_schedule | restore." }, { status: 400 });
+        return NextResponse.json({ error: "bad_request", message: "Unknown action. Use pair | unpair | sync | toggle | toggle_schedule | restore | import." }, { status: 400 });
     }
   } catch (e) {
     return fail(e);

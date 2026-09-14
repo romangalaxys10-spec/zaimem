@@ -139,6 +139,127 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
 3. Continue from the compressed digest; re-expand only the parts the user revisits.
 4. Store any dropped durable facts with zaimem_remember so compression never loses decisions.`,
   },
+  {
+    name: "meeting-notes",
+    description:
+      "Meeting intelligence (tactiq-style) — save meeting/webinar transcripts once, get an automatic summary with speakers and action items, then answer questions across every past meeting. Use whenever the user shares a transcript, joins a call, mentions Zoom/Meet/Teams, or asks what was decided in a meeting.",
+    triggers: [
+      "meeting",
+      "transcript",
+      "zoom",
+      "google meet",
+      "teams call",
+      "standup",
+      "action items",
+      "call notes",
+      "встреча",
+      "созвон",
+      "митинг",
+    ],
+    body: `# Meeting Notes
+1. When the user pastes or uploads a transcript, call zaimem_ingest_meeting {title, transcript}.
+   ZaiMem auto-extracts a summary, speakers and action items — relay them back.
+2. For "what did we decide about X?" questions, call zaimem_meeting_search {question}
+   BEFORE guessing — it searches across every saved meeting.
+3. zaimem_meetings_list gives the catalog with summaries when the user asks for an overview.
+4. Persist durable outcomes with zaimem_remember (kind: decision) so future sessions inherit them.`,
+  },
+  {
+    name: "web-research",
+    description:
+      "Live web research protocol — search the real web, fetch pages, distill findings and keep durable facts in memory. Use when the question needs current information, docs, prices, release notes or anything the model cannot know.",
+    triggers: [
+      "search the web",
+      "google it",
+      "look up",
+      "latest news",
+      "latest version",
+      "fetch this url",
+      "current price",
+      "release notes",
+      "documentation",
+      "найди в интернете",
+      "поищи",
+    ],
+    body: `# Web Research
+1. zaimem_web_search {query, num} first; read titles/snippets.
+2. zaimem_web_fetch {url, max_chars} the 1-3 most promising pages for exact wording.
+3. Distill: answer with citations (host + path), never invent URLs.
+4. If a finding is durable (project versions, decisions, facts the user will need again),
+   store it with zaimem_remember (kind: fact, include the source URL in the content).`,
+  },
+  {
+    name: "session-continuity",
+    description:
+      "Cross-IDE session handoff — pre-create dedicated sessions with bootstrap prompts, or extract a continue prompt from an existing auto-created session so work can resume in another IDE/chat. Use when the user says 'continue this in another session/IDE', asks for a bootstrap prompt, or wants a fresh session prepared in advance.",
+    triggers: [
+      "continue in another session",
+      "continue elsewhere",
+      "another ide",
+      "bootstrap prompt",
+      "start prompt",
+      "pre-create session",
+      "new session for this",
+      "handoff prompt",
+      "перенести сессию",
+      "продолжить в другом",
+    ],
+    body: `# Session Continuity
+1. To prepare work in advance: zaimem_session_create {title, brief, project} → returns a
+   session id + bootstrap prompt the user pastes into any new chat to attach to it.
+2. To move an ongoing session elsewhere: zaimem_session_prompt {session_id} → returns a
+   continue prompt embedding the summary, open tasks and key memories.
+3. zaimem_handoff_brief gives the full cross-tool transfer brief (sessions + tasks + memories).
+4. Never dump raw memory JSON into the chat — hand over the generated prompt only.`,
+  },
+  {
+    name: "project-team",
+    description:
+      "Project agent teams — onboard any agent onto a shared project with its instructions and files, and hand the work to the next agent like a dev team. Use when the user mentions a ZaiMem project, asks to join/onboard an agent to a project, or to pass project work to another agent.",
+    triggers: [
+      "project team",
+      "join the project",
+      "onboard to project",
+      "project instructions",
+      "team of agents",
+      "pass to another agent",
+      "next agent",
+      "проект",
+      "команда",
+    ],
+    body: `# Project Team
+1. Onboarding: zaimem_project_brief {project} → injects the project description,
+   instructions and file index; read the files with zaimem_doc_read before working.
+2. Scope memories to the project: zaimem_remember {project: "<name>"} so the team's
+   knowledge stays namespaced.
+3. Handoff: zaimem_project_handoff {project} → a ready-to-paste prompt that brings the
+   next agent up to speed (brief + open threads + latest project memories).
+4. Agents that join via MCP are tracked in the project roster — call project_brief once
+   per session so lastSeenAt stays fresh.`,
+  },
+  {
+    name: "doc-memory",
+    description:
+      "Document long-term memory — turn uploaded PDF/DOCX/TXT/MD files into a searchable, chunked, deduped knowledge base with source citations. Use when the user uploads a document or asks the agent to 'read this file' across sessions.",
+    triggers: [
+      "read this pdf",
+      "ingest document",
+      "upload file",
+      "summarize this file",
+      "this document",
+      "from the pdf",
+      "attachment",
+      "документ",
+      "прочитай файл",
+    ],
+    body: `# Doc Memory
+1. Ingest: zaimem_ingest_file {name, content} (dashboard drag-drop also works) — chunked,
+   hash-deduped, stored as kind: document.
+2. Read lazily: zaimem_doc_read {source, part} — pull only the chunks you need, cite the
+   source file and part number in the answer.
+3. Recall across sessions: zaimem_recall surfaces document chunks with source citations.
+4. Never claim a document says something without a matching chunk — fetch it first.`,
+  },
 ];
 
 /** Difficulty classification [E5] — returns budget guidance. */

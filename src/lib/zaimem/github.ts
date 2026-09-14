@@ -518,3 +518,141 @@ export async function restoreFromSnapshot(userId: string, sha: string): Promise<
   }).catch(() => {});
   return { sha, imported, deduped, skipped };
 }
+
+// ─── cross-account rescue import (new account ← old account's repo) ──────────
+
+export interface ImportResult {
+  repo: string;
+  branch: string;
+  memories: { imported: number; deduped: number; skipped: number };
+  skillsImported: number;
+  sessions: { imported: number; skipped: number };
+}
+
+/**
+ * Re-sync a ZaiMem account from an existing ZaiMem cloud-DB repo on GitHub.
+ * Use case: the user created a fresh ZaiMem account (new token) and wants
+ * their earlier data back. Needs only repo + PAT — pairing NOT required.
+ * Imports (all additive, dedupe makes re-imports harmless):
+ *   • memories.json  → long-term memories (embeddings re-computed)
+ *   • sessions/*.json→ session shells with titles + summaries
+ *   • skills.json    → skills this account does not have yet (source: "imported")
+ */
+export async function importFromRepo(userId: string, pat: string, repoFull: string, branch?: string): Promise<ImportResult> {
+  await validatePat(pat);
+  const clean = repoFull.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/, "").replace(/\/+$/, "");
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(clean)) {
+    throw new GhError(400, "Repo must look like owner/name (or a github.com URL).");
+  }
+  const { data: repoInfo } = await ghJson<{ default_branch: string }>(pat, `/repos/${clean}`);
+  const br = branch?.trim() || repoInfo?.default_branch || "main";
+
+  async function readFile(path: string): Promise<string | null> {
+    try {
+      const { data } = await ghJson<{ content: string; encoding: string }>(
+        pat, `/repos/${clean}/contents/${encodeURI(path)}?ref=${encodeURIComponent(br)}`,
+      );
+      if (!data || data.encoding !== "base64") return null;
+      return Buffer.from(data.content, "base64").toString("utf-8");
+    } catch (e) {
+      if (e instanceof GhError && e.status === 404) return null;
+      throw e;
+    }
+  }
+
+  const result: ImportResult = {
+    repo: clean, branch: br,
+    memories: { imported: 0, deduped: 0, skipped: 0 },
+    skillsImported: 0,
+    sessions: { imported: 0, skipped: 0 },
+  };
+
+  // 1. memories.json — the core of the account
+  const memRaw = await readFile("memories.json");
+  if (memRaw) {
+    let entries: unknown;
+    try { entries = JSON.parse(memRaw); } catch { throw new GhError(422, "memories.json in that repo is not valid JSON."); }
+    if (!Array.isArray(entries)) throw new GhError(422, "Unexpected memories.json format.");
+    const { rememberMemory } = await import("./memory");
+    for (const e of (entries as { content?: unknown; kind?: unknown }[]).slice(0, 2000)) {
+      const content = typeof e.content === "string" ? e.content.trim() : "";
+      if (!content) { result.memories.skipped++; continue; }
+      try {
+        const r = await rememberMemory({ userId, content, kind: typeof e.kind === "string" ? e.kind : undefined });
+        if (r.created) result.memories.imported++; else result.memories.deduped++;
+      } catch { result.memories.skipped++; }
+    }
+  }
+
+  // 2. sessions/*.json — restore session shells (title, summary, counters)
+  let sessionFiles: { path: string }[] = [];
+  try {
+    const { data } = await ghJson<{ tree: { path: string; type: string }[] }>(
+      pat, `/repos/${clean}/git/trees/${encodeURIComponent(br)}?recursive=1`,
+    );
+    sessionFiles = (data?.tree ?? [])
+      .filter((t) => t.type === "blob" && t.path.startsWith("sessions/") && t.path.endsWith(".json"))
+      .slice(0, 300);
+  } catch { /* unborn branch / empty repo — no sessions to walk */ }
+  for (const f of sessionFiles) {
+    const raw = await readFile(f.path);
+    if (!raw) continue;
+    try {
+      const s = JSON.parse(raw) as {
+        id?: string; title?: string; topic?: string; status?: string;
+        summary?: string; turns?: number; tokensSaved?: number;
+      };
+      const oldId = (typeof s.id === "string" && s.id ? s.id : f.path).slice(0, 200);
+      const exists = await db.session.findFirst({ where: { userId, externalId: oldId }, select: { id: true } });
+      if (exists) { result.sessions.skipped++; continue; }
+      await db.session.create({
+        data: {
+          userId,
+          externalId: oldId,
+          title: (s.title || "Imported session").slice(0, 120),
+          topic: typeof s.topic === "string" ? s.topic.slice(0, 500) : null,
+          origin: "imported",
+          status: s.status === "archived" ? "archived" : "summarized",
+          summary: typeof s.summary === "string" ? s.summary.slice(0, 8000) : null,
+          turns: Number.isFinite(s.turns) ? Math.max(0, Math.min(100_000, Number(s.turns))) : 0,
+          tokensSaved: Number.isFinite(s.tokensSaved) ? Math.max(0, Math.min(10_000_000, Number(s.tokensSaved))) : 0,
+        },
+      });
+      result.sessions.imported++;
+    } catch { result.sessions.skipped++; }
+  }
+
+  // 3. skills.json — bring over skills this account does not have yet
+  const skillsRaw = await readFile("skills.json");
+  if (skillsRaw) {
+    try {
+      const list = JSON.parse(skillsRaw) as { name?: unknown; description?: unknown; triggers?: unknown; body?: unknown }[];
+      for (const k of Array.isArray(list) ? list : []) {
+        if (typeof k.name !== "string" || !k.name.trim()) continue;
+        const exists = await db.skill.findFirst({ where: { userId, name: k.name }, select: { id: true } });
+        if (exists) continue;
+        const triggers = Array.isArray(k.triggers) ? k.triggers.map(String) : [];
+        await db.skill.create({
+          data: {
+            userId,
+            name: k.name.slice(0, 80),
+            description: typeof k.description === "string" ? k.description.slice(0, 1000) : "",
+            triggers: JSON.stringify(triggers),
+            body: typeof k.body === "string" ? k.body.slice(0, 60_000) : "",
+            source: "imported",
+          },
+        });
+        result.skillsImported++;
+      }
+    } catch { /* malformed skills.json — skip silently */ }
+  }
+
+  await db.syncLog.create({
+    data: {
+      userId, action: "import", status: "ok", files: result.memories.imported,
+      detail: `imported from ${clean}@${br}: ${result.memories.imported} memories (+${result.memories.deduped} dupes), ${result.sessions.imported} sessions, ${result.skillsImported} skills`,
+    },
+  }).catch(() => {});
+  queueSync(userId);
+  return result;
+}

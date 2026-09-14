@@ -292,6 +292,8 @@ const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
       { name: "Session handoffs", desc: "paste-ready prompt for any fresh agent chat" },
       { name: "Project agent teams", desc: "connect agents, shared brief, files & memory" },
       { name: "Universal tools", desc: "web search · web fetch · calc · time · think" },
+      { name: "MCP tool packs", desc: "33 tools in 8 packs — every pack on/off from the dashboard" },
+      { name: "8 SKILL.md skills", desc: "smart, meeting-notes, web-research, project-team, doc-memory & more" },
     ],
   },
   {
@@ -299,6 +301,8 @@ const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
     items: [
       { name: "GitHub Cloud DB", desc: "your private repo mirrors everything" },
       { name: "Scheduled daily backup", desc: "heartbeat snapshot ~every 24h" },
+      { name: "One-PAT account rescue", desc: "new account? re-sync everything from your old GitHub repo" },
+      { name: "Point-in-time restore", desc: "roll memories back to any snapshot commit" },
       { name: "AES-256 export / import", desc: "encrypted, portable archives" },
       { name: "Global search ⌘K", desc: "sessions, memories, ledger, skills" },
       { name: "Kind & date filters", desc: "24h → 1 year, per category" },
@@ -307,7 +311,8 @@ const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
   {
     group: "Platform & privacy",
     items: [
-      { name: "MCP server", desc: "14 tools · 3 resources · JSON-RPC 2.0" },
+      { name: "MCP server", desc: "33 tools · 4 resources · JSON-RPC 2.0" },
+      { name: "Tool-pack gating", desc: "agents only see the capability groups you allow" },
       { name: "Batch calls & CORS", desc: "streamable HTTP transport" },
       { name: "Prompt-injection guard", desc: "ledger is data, never instructions" },
       { name: "Local vector engine", desc: "no external embedding APIs" },

@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Github, CloudUpload, Link2, Loader2, ExternalLink, ShieldCheck,
-  CheckCircle2, XCircle, RefreshCw, Unlink, KeyRound, History, Lock, CalendarClock,
+  CheckCircle2, XCircle, RefreshCw, Unlink, KeyRound, History, Lock, CalendarClock, LifeBuoy,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { fmtDate } from "./panels";
@@ -66,6 +66,8 @@ const ACTION_LABELS: Record<string, string> = {
   unpair: "Unpaired",
   auto: "Auto sync",
   backup: "Scheduled backup",
+  restore: "Snapshot restore",
+  import: "Account re-sync",
   error: "Error",
 };
 
@@ -318,7 +320,100 @@ function SyncLogList({ logs }: { logs: SyncLogEntry[] }) {
   );
 }
 
-// ─── panel root ──────────────────────────────────────────────────────────────
+// ─── rescue import: re-sync an old account from its GitHub repo ─────────────
+
+function RestoreCard({ token, onImported }: { token: string; onImported: () => void }) {
+  const [repo, setRepo] = useState("");
+  const [pat, setPat] = useState("");
+  const [branch, setBranch] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function importNow() {
+    if (repo.trim() && !/^([\w.-]+\/[\w.-]+|https:\/\/github\.com\/[\w.-]+\/[\w.-]+)/.test(repo.trim())) {
+      toast({ title: "Repo format", description: "Use owner/repo (e.g. octocat/zaimem-cloud-db) or a github.com URL.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await call<{
+        import: {
+          repo: string; branch: string;
+          memories: { imported: number; deduped: number; skipped: number };
+          skillsImported: number;
+          sessions: { imported: number; skipped: number };
+        };
+      }>(token, { action: "import", pat: pat.trim(), repo: repo.trim(), branch: branch.trim() || undefined }, "POST");
+      const im = r.import;
+      toast({
+        title: "Account re-synced from GitHub ✓",
+        description: `${im.repo}@${im.branch} — ${im.memories.imported} memories imported (+${im.memories.deduped} duplicates merged), ${im.sessions.imported} sessions restored, ${im.skillsImported} skills brought over.`,
+      });
+      setPat("");
+      onImported();
+    } catch (e) {
+      toast({ title: "Import failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="border-sky-500/20 bg-gradient-to-br from-sky-500/[0.06] to-transparent">
+      <CardContent className="p-5">
+        <h3 className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-zinc-100">
+          <LifeBuoy className="h-4 w-4 text-sky-400" /> New account? Re-sync your old ZaiMem from GitHub
+        </h3>
+        <p className="mb-4 text-[11px] leading-relaxed text-zinc-400">
+          Fresh token / fresh account, but your previous ZaiMem synced to a private GitHub repo? Point ZaiMem at that
+          <span className="text-zinc-300"> zaimem-cloud-db</span> repo with your PAT — memories, sessions and skills are pulled back in
+          (dedupe makes it safe to run twice). Pairing is not required.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-zinc-400" htmlFor="gh-import-repo">Previous cloud-DB repo</label>
+              <Input
+                id="gh-import-repo" value={repo} onChange={(e) => setRepo(e.target.value)}
+                placeholder="octocat/zaimem-cloud-db"
+                className="h-10 border-white/10 bg-white/5 font-mono text-sm text-zinc-200 placeholder:text-zinc-500 focus-visible:ring-sky-500/50"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-zinc-400" htmlFor="gh-import-pat">GitHub PAT with access to it</label>
+              <Input
+                id="gh-import-pat" type="password" value={pat} onChange={(e) => setPat(e.target.value)}
+                placeholder="ghp_… or github_pat_…" autoComplete="off"
+                className="h-10 border-white/10 bg-white/5 font-mono text-sm text-zinc-200 placeholder:text-zinc-500 focus-visible:ring-sky-500/50"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-zinc-400" htmlFor="gh-import-branch">Branch <span className="text-zinc-500">(optional — default branch)</span></label>
+              <Input
+                id="gh-import-branch" value={branch} onChange={(e) => setBranch(e.target.value)}
+                placeholder="main"
+                className="h-10 border-white/10 bg-white/5 font-mono text-sm text-zinc-200 placeholder:text-zinc-500 focus-visible:ring-sky-500/50"
+              />
+            </div>
+            <Button onClick={importNow} disabled={busy} className="h-10 w-full bg-sky-600 text-white hover:bg-sky-500">
+              {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <LifeBuoy className="mr-1 h-4 w-4" />}
+              {busy ? "Reading repo · importing memories · restoring sessions…" : "Import & re-sync my account"}
+            </Button>
+          </div>
+          <div className="rounded-lg border border-sky-500/15 bg-sky-500/5 p-3">
+            <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-zinc-400">
+              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-400" />
+              The PAT is used only to read that one repo and is never stored. Imports are additive: existing identical
+              memories are merged (never duplicated), sessions keep their titles and summaries, and skills you do not
+              have yet are added. Nothing in the current account is deleted.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── panel root ──────────────────────────────────────────────────────────────────
 
 export function CloudDbPanel({ token, refreshToken }: { token: string; refreshToken: () => void }) {
   const [status, setStatus] = useState<GhStatus | null>(null);
@@ -348,6 +443,8 @@ export function CloudDbPanel({ token, refreshToken }: { token: string; refreshTo
       ) : (
         <PairForm token={token} onPaired={load} />
       )}
+
+      <RestoreCard token={token} onImported={load} />
 
       <Card className="border-white/5 bg-white/[0.03]">
         <CardContent className="p-5">

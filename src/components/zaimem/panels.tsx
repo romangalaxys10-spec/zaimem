@@ -16,6 +16,7 @@ import {
   FileText, Layers, Clock, TrendingUp, Activity, Download, Upload,
   FileUp, CheckCircle2, Pin, PinOff, Pencil, Check, X, Archive,
   ShieldAlert, GitBranch, History, ClipboardCopy, CalendarPlus, Link2, Users, FolderKanban, Copy,
+  Feather, Video, Globe, Blocks,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -830,16 +831,45 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
 
 // ─── Skills panel ────────────────────────────────────────────────────────────
 
+interface PackItem {
+  id: string;
+  name: string;
+  description: string;
+  tools: string[];
+  locked: boolean;
+  enabled: boolean;
+}
+
+const PACK_ICONS: Record<string, typeof Database> = {
+  "core-memory": Database,
+  sessions: MessageSquare,
+  projects: FolderKanban,
+  meetings: Video,
+  documents: FileText,
+  "web-tools": Globe,
+  "smart-skills": Blocks,
+  "context-saver": Zap,
+};
+
 export function SkillsPanel({ token, refreshToken }: { token: string; refreshToken: () => void }) {
   const [skills, setSkills] = useState<SkillItem[] | null>(null);
+  const [packs, setPacks] = useState<PackItem[] | null>(null);
+  const [headroom, setHeadroom] = useState(false);
 
   useEffect(() => {
-    api<{ skills: SkillItem[] }>("/api/skills", token)
-      .then((d) => setSkills(d.skills))
-      .catch(() => setSkills([]));
+    api<{ skills: SkillItem[]; packs: PackItem[]; headroom: boolean }>("/api/skills", token)
+      .then((d) => {
+        setSkills(d.skills);
+        setPacks(d.packs);
+        setHeadroom(!!d.headroom);
+      })
+      .catch(() => {
+        setSkills([]);
+        setPacks([]);
+      });
   }, []);
 
-  async function toggle(id: string, enabled: boolean) {
+  async function toggleSkill(id: string, enabled: boolean) {
     try {
       await api("/api/skills", token, {
         method: "PATCH",
@@ -854,18 +884,135 @@ export function SkillsPanel({ token, refreshToken }: { token: string; refreshTok
     }
   }
 
-  if (skills === null) {
+  async function togglePack(packId: string, enabled: boolean) {
+    setPacks((p) => p?.map((x) => (x.id === packId ? { ...x, enabled } : x)) ?? null);
+    try {
+      await api("/api/skills", token, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packId, enabled }),
+      });
+      toast({
+        title: enabled ? "Tool pack enabled" : "Tool pack disabled",
+        description: enabled
+          ? "The pack's MCP tools are visible to agents again."
+          : "The pack's MCP tools are now hidden from tools/list and refuse calls.",
+      });
+      refreshToken();
+    } catch (e) {
+      setPacks((p) => p?.map((x) => (x.id === packId ? { ...x, enabled: !enabled } : x)) ?? null);
+      toast({ title: "Update failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
+    }
+  }
+
+  async function toggleHeadroom(on: boolean) {
+    setHeadroom(on);
+    try {
+      await api("/api/skills", token, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ headroom: true, enabled: on }),
+      });
+      toast({
+        title: on ? "Headroom compression ON" : "Headroom compression OFF",
+        description: on ? "Context blocks are compressed harder — originals stay retrievable." : "Context blocks return to full length.",
+      });
+      refreshToken();
+    } catch (e) {
+      setHeadroom(!on);
+      toast({ title: "Update failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
+    }
+  }
+
+  if (skills === null || packs === null) {
     return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-violet-400" /></div>;
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs leading-relaxed text-zinc-400">
-        The skill registry follows the <span className="font-mono text-zinc-400">SKILL.md</span> convention ported from{" "}
-        <a href="https://github.com/romangalaxys10-spec/zcode-smart-skill" target="_blank" rel="noreferrer" className="text-violet-400 underline-offset-2 hover:underline">zcode-smart-skill</a>.
-        The agent auto-triggers these via <span className="font-mono text-zinc-400">zaimem_detect_skill</span> — trigger phrases live inside each description.
-      </p>
-      {skills.map((s) => (
+    <div className="space-y-6">
+      {/* ── compression modes ── */}
+      <section className="space-y-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Compression modes</h2>
+        <Card className={`border-white/5 transition-colors ${headroom ? "border-amber-500/25 bg-amber-500/[0.05]" : "bg-white/[0.03]"}`}>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Feather className={`h-4 w-4 ${headroom ? "text-amber-400" : "text-zinc-500"}`} />
+                  <h3 className="font-mono font-semibold text-zinc-100">headroom</h3>
+                  <Badge variant="outline" className="text-[10px] border-amber-500/30 bg-amber-500/10 text-amber-300">mode</Badge>
+                </div>
+                <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+                  HEADROOM compression (headroomlabs-ai/headroom pattern) — every context injection is compressed
+                  harder: shorter excerpts, skill protocols withheld, digests capped tight. Originals stay full-fidelity
+                  in the store and remain retrievable. Toggle here, from the ⚡ header switch, or via the
+                  <span className="font-mono text-zinc-400"> zaimem_headroom</span> MCP tool.
+                </p>
+              </div>
+              <Switch checked={headroom} onCheckedChange={toggleHeadroom} aria-label="Toggle headroom compression mode" />
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* ── MCP tool packs ── */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">MCP tool packs</h2>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            All {packs.reduce((n, p) => n + p.tools.length, 0)} MCP tools grouped into {packs.length} packs — switch a
+            pack OFF and its tools disappear from tools/list and refuse calls, until you flip it back.
+          </p>
+        </div>
+        {packs.map((p) => {
+          const Icon = PACK_ICONS[p.id] ?? Blocks;
+          return (
+            <Card key={p.id} className={`border-white/5 transition-colors ${p.enabled ? "bg-white/[0.03]" : "bg-white/[0.01] opacity-60"}`}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Icon className={`h-4 w-4 ${p.enabled ? "text-violet-400" : "text-zinc-500"}`} />
+                      <h3 className="font-semibold text-zinc-100">{p.name}</h3>
+                      <Badge variant="outline" className="text-[10px] border-white/10 bg-white/5 text-zinc-400">
+                        {p.tools.length} tool{p.tools.length === 1 ? "" : "s"}
+                      </Badge>
+                      {p.locked && (
+                        <Badge variant="outline" className="text-[10px] border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
+                          always on
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">{p.description}</p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {p.tools.map((t) => (
+                        <span key={t} className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={p.enabled}
+                    disabled={p.locked}
+                    onCheckedChange={(v) => togglePack(p.id, v)}
+                    aria-label={`Toggle ${p.name} pack`}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </section>
+
+      {/* ── SKILL.md registry ── */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">SKILL.md skill registry</h2>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            Auto-trigger protocols the agent loads via <span className="font-mono">zaimem_detect_skill</span> — disabled
+            skills never match. New builtin skills are seeded automatically.
+          </p>
+        </div>
+        {skills.map((s) => (
         <Card key={s.id} className={`border-white/5 transition-colors ${s.enabled ? "bg-white/[0.03]" : "bg-white/[0.01] opacity-60"}`}>
           <CardContent className="p-4">
             <div className="flex items-start justify-between gap-3">
@@ -884,11 +1031,12 @@ export function SkillsPanel({ token, refreshToken }: { token: string; refreshTok
                   {s.triggers.length > 8 && <span className="text-[10px] text-zinc-500">+{s.triggers.length - 8} more</span>}
                 </div>
               </div>
-              <Switch checked={s.enabled} onCheckedChange={(v) => toggle(s.id, v)} aria-label={`Toggle ${s.name}`} />
+              <Switch checked={s.enabled} onCheckedChange={(v) => toggleSkill(s.id, v)} aria-label={`Toggle ${s.name}`} />
             </div>
           </CardContent>
         </Card>
       ))}
+      </section>
     </div>
   );
 }

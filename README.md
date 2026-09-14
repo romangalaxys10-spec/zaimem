@@ -45,7 +45,7 @@
 
 - **Automated private tokens** — no signup: visit the app, get a `zm_…` token instantly, log in with it.
 - **Magic prompt (universal)** — the dashboard generates a ready-to-paste activation prompt with your MCP endpoint and key embedded. Works in any MCP-capable agent: chat.z.ai, Claude Code, Cursor, Cline, Windsurf, Trae, Antigravity, zcode, Koda, Pi, Grok and more.
-- **MCP server** (JSON-RPC 2.0, streamable HTTP) — 33 tools, 4 resources, prompt templates, batch calls, session ids, CORS.
+- **MCP server** (JSON-RPC 2.0, streamable HTTP) — 33 tools in 8 togglable **tool packs**, 4 resources, prompt templates, batch calls, session ids, CORS.
 - **Document ingestion** — `zaimem_ingest_file` MCP tool + dashboard drag-and-drop upload (PDF / DOCX / TXT / MD / CSV / code): text is auto-chunked into ~600-token overlapping pieces, every chunk is embedded as a `document` memory tagged with its source filename, and re-ingestion is idempotent (same content hash → no-op; changed file → chunks replaced). Recall hits cite `[doc:file.pdf · part i/N]`.
 - **Pinned memories** — `zaimem_remember {pinned: true}` (or one click in the dashboard) marks a memory as always-in-force: it is injected into every `zaimem_enhance_context` block and gets a recall ranking boost.
 - **Right to be forgotten** — `zaimem_forget` MCP tool with a two-phase preview → confirm flow: match by id, semantic query, kind, source filename (purge a whole document) or created-before date; dashboard rows also support inline edit (re-embeds instantly) and pin toggle.
@@ -56,9 +56,10 @@
 - **HEADROOM compression mode** — togglable (dashboard switch or `zaimem_headroom {enabled}`), inspired by [headroomlabs-ai/headroom](https://github.com/headroomlabs-ai/headroom): when ON, every context injection is compressed harder (shorter excerpts, skill protocols withheld) to preserve context-window headroom, while originals stay full-fidelity in the store and remain retrievable via `zaimem_doc_read` / `zaimem_recall`. Lifetime tokens freed are counted per account.
 - **Local vector memory** — 384-dim hashed word/bigram/char-4gram embeddings with cosine recall; auto-dedupe (0.94 duplicate / 0.80 merge thresholds), recency + keyword boosts, context-block assembly.
 - **Token saver** — LLM-powered digests (with extractive fallback) compress long context; token accounting per action.
-- **Smart skills** (zcode-smart-skill integration) — SKILL.md skill registry, auto trigger detection, difficulty budgets (E5: 2/6/12), ledger pages (`notes.md`, `tasks.json`) with size budgets, handoff brief with TRUST clause, reflection schema.
+- **Smart skills** (zcode-smart-skill integration) — 8 builtin SKILL.md skills (`smart`, `context-boost`, `token-frugal`, `meeting-notes`, `web-research`, `session-continuity`, `project-team`, `doc-memory`), auto trigger detection, difficulty budgets (E5: 2/6/12), ledger pages (`notes.md`, `tasks.json`) with size budgets, handoff brief with TRUST clause, reflection schema. Every skill and every tool pack has an on/off switch in the Skills tab.
 - **GitHub Cloud DB (free hosting)** — pair a GitHub PAT (pre-filled token link, 2 minutes, free — private repos cost nothing) and a private repo is auto-created in YOUR account; every session, memory, project & file is auto-synced in real time (sha-based idempotent pushes, 4s debounced, full audit trail). Your memory stops consuming ZaiMem's local storage entirely — the dashboard keeps the recommendation visible until you pair.
 - **Scheduled daily backup** — an optional heartbeat push of a full snapshot ~every 24h (configurable via `ZAIMEM_BACKUP_HOURS`), even when nothing changed — proof the backup pipeline is alive. Toggle it in the Cloud DB panel.
+- **One-PAT account rescue** — fresh token / new account, but your old ZaiMem already synced to a private GitHub repo? Point the Cloud DB tab's rescue card at that repo (`owner/name` + PAT): memories are re-imported through the dedupe engine (safe to run twice), sessions come back with titles and summaries, and skills you don't have yet are added. Pairing not required, nothing deleted.
 - **Global search (⌘K)** — one query across all sessions, memories (vector + substring), ledger pages and skills, with jump-to-result navigation. Filter results by kind (sessions / memories / ledger / skills) and by date range (24 h → 1 year) right from the command bar.
 
 ## Quick start
@@ -184,9 +185,9 @@ The endpoint implements the Model Context Protocol over streamable HTTP (`initia
 | `GET /api/auth/me` | Current user + stats + config |
 | `GET/POST /api/sessions`, `GET/DELETE /api/sessions/[id]` | Session management |
 | `GET /api/memories`, `POST /api/memories`, `DELETE /api/memories/[id]` | Memory browsing & vector search |
-| `GET/PATCH /api/skills` | Skill registry + enable/disable |
+| `GET/PATCH /api/skills` | Skills + MCP tool packs + headroom mode: GET returns all three, PATCH toggles (`{id}` skill · `{packId}` pack · `{headroom}` mode) |
 | `GET /api/stats` | Usage statistics (tokens saved, actions) |
-| `GET/POST /api/github` | Cloud DB status, pair / unpair / sync / toggle |
+| `GET/POST /api/github` | Cloud DB status, pair / unpair / sync / toggle / restore / **import** (new-account rescue) |
 
 ## GitHub Cloud DB
 
@@ -196,6 +197,7 @@ Pair your PAT (classic, `repo` scope) from the dashboard's **Cloud DB** tab:
 2. A **private** repo (default `zaimem-cloud-db`) is auto-created in your account.
 3. Every mutation (memories, sessions, ledger, skills, stats) triggers a debounced auto-sync.
 4. Pushes are idempotent — unchanged files are skipped via git blob SHA comparison; your own files in the repo are never touched.
+5. **New account?** `POST /api/github {action: "import", pat, repo, branch?}` — or the Cloud DB tab's rescue card — re-syncs an existing cloud-DB repo into the current account (memories + sessions + skills, additive & dedupe-aware).
 
 Repo layout:
 
@@ -209,6 +211,21 @@ skills.json           # skill registry
 stats.json            # usage statistics
 sync/log.json         # sync audit trail
 ```
+
+## Tool packs — capability switches
+
+All 33 MCP tools belong to one of 8 packs. Flip a pack off in **Skills → MCP tool packs** and its tools vanish from `tools/list`; a direct call answers with a clear "pack is switched OFF" hint instead of executing. `core-memory` is locked — it is the product:
+
+| Pack | Tools |
+|---|---|
+| Core memory (locked) | sync_session · remember · remember_many · recall · forget · enhance_context |
+| Session continuity | session_status · brief_me · resume · task_next · session_summary · handoff_brief · session_create · session_prompt |
+| Project agent teams | project_brief · project_handoff |
+| Meeting intelligence | ingest_meeting · meetings_list · meeting_search |
+| Document ingestion | ingest_file · doc_read |
+| Web & utilities | web_search · web_fetch · calc · time · think |
+| Smart skills & ledger | detect_skill · list_skills · get_skill · ledger_write · ledger_read |
+| Token saver & headroom | save_tokens · headroom |
 
 ## Architecture
 

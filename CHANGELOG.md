@@ -2,6 +2,23 @@
 
 All notable changes to ZaiMem are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is semver.
 
+## [1.7.1] — Skills section: tool packs, Headroom card & one-PAT account rescue
+
+### Added
+- **MCP tool packs — all 33 tools grouped into 8 per-user on/off packs**
+  - New `ToolPackPref` model + `src/lib/zaimem/tool-packs.ts` registry: `core-memory` (locked, always on), session continuity, project agent teams, meeting intelligence, document ingestion, web & utilities, smart skills & ledger, token saver & headroom.
+  - The MCP server filters `tools/list` by the user's pack prefs and refuses `tools/call` for disabled packs with a clear re-enable hint — agents only see the capability groups their human allows.
+  - Dashboard **Skills** tab: new "MCP tool packs" group with per-pack switches, icons, tool chips and counts.
+  - `GET /api/skills` now returns `{skills, packs, headroom}`; `PATCH /api/skills` accepts `{packId, enabled}` (locked packs answer 409).
+- **Headroom card in the Skills section** — the compression mode now also lives where the skills do: dedicated card at the top of the Skills tab, same `User.headroom` setting as the header switch, `PATCH /api/settings` and the `zaimem_headroom` MCP tool.
+- **5 new builtin skills (3 → 8)** — `meeting-notes`, `web-research`, `session-continuity`, `project-team`, `doc-memory`: SKILL.md protocols wiring the matching MCP tool groups into agent behavior. Seeded idempotently for existing accounts (on MCP initialize, login, and every Skills-tab load).
+- **One-PAT account rescue (GitHub re-sync)** — fresh token / brand-new account, but the old ZaiMem already mirrored everything to a private GitHub repo?
+  - New `POST /api/github {action: "import", pat, repo, branch?}` pulls the old cloud-DB repo into the current account: memories re-imported through the dedupe engine (idempotent — safe to run twice), `sessions/*.json` restored as session shells with titles/summaries/counters, and `skills.json` entries the account lacks are added (source: `imported`).
+  - Pairing is NOT required — only repo + PAT. Fully additive; nothing in the current account is deleted or overwritten.
+  - Dashboard Cloud DB tab: "New account? Re-sync your old ZaiMem from GitHub" card (repo, PAT, optional branch) + sync-log labels for `import` / `restore`.
+- Landing "everything included" inventory updated (tool packs, 8 skills, one-PAT rescue, point-in-time restore, tool-pack gating); dashboard footer mentions the packs and rescue flow.
+- e2e suite: section 14 (pack gating — tools/list 33 → 30 → refused call with pack hint → 33, locked-pack 409, headroom toggle via `/api/skills`) and section 15 (rescue import against an in-suite mock GitHub API: import → second-run dedupe → memory-count delta → rescued sessions visible → imported skill). **150/150 checks green.**
+
 ## [1.7.0] — Sessions, Project Teams, Meetings, Universal Tools & HEADROOM
 
 ### Added

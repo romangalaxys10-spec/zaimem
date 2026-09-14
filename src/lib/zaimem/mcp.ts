@@ -60,6 +60,7 @@ import {
   BUILTIN_SKILLS, detectSkill, LEDGER_BUDGETS, enforceLedgerBudget, formatHandoffBrief, REFLECTION_SCHEMA,
 } from "./skills";
 import { seedBuiltinSkills } from "./seed";
+import { packForTool, TOOL_PACKS } from "./tool-packs";
 import { queueSync } from "./github";
 import { findGlobalLedgerPage, upsertGlobalLedgerPage } from "./mcp-helpers";
 
@@ -509,10 +510,29 @@ async function getUserSkills(userId: string) {
   return rows;
 }
 
+/** Pack ids the user switched OFF in the dashboard (missing rows = enabled). */
+async function getDisabledPacks(userId: string): Promise<Set<string>> {
+  const rows = await db.toolPackPref.findMany({ where: { userId, enabled: false }, select: { packId: true } });
+  return new Set(rows.map((r) => r.packId));
+}
+
 async function handleToolCall(user: { id: string; token: string }, name: string, args: Record<string, unknown>, id: RpcRequest["id"], httpReq: NextRequest) {
   const userId = user.id;
   const str = (k: string) => (typeof args[k] === "string" ? (args[k] as string) : undefined);
   const num = (k: string) => (typeof args[k] === "number" ? (args[k] as number) : undefined);
+
+  // tool-pack gate — the user decides which capability groups agents may use
+  const pack = packForTool(name);
+  if (pack && !pack.locked) {
+    const pref = await db.toolPackPref.findUnique({ where: { userId_packId: { userId, packId: pack.id } } });
+    if (pref && !pref.enabled) {
+      return textResult(
+        id,
+        `⛔ Tool "${name}" is unavailable — the "${pack.name}" tool pack is switched OFF in the owner's ZaiMem dashboard (Skills section). Ask the user to re-enable that pack, then retry.`,
+        { isError: true },
+      );
+    }
+  }
 
   switch (name) {
     case "zaimem_sync_session": {
@@ -1542,8 +1562,16 @@ async function dispatch(user: { id: string; token: string }, req: RpcRequest, ht
     case "ping":
       return rpcResult(id, {});
 
-    case "tools/list":
-      return rpcResult(id, { tools: TOOLS });
+    case "tools/list": {
+      const disabled = await getDisabledPacks(userId);
+      const tools = disabled.size === 0
+        ? TOOLS
+        : TOOLS.filter((t) => {
+            const p = packForTool(t.name);
+            return !p || p.locked || !disabled.has(p.id);
+          });
+      return rpcResult(id, { tools });
+    }
 
     case "tools/call": {
       const name = typeof params.name === "string" ? params.name : "";
