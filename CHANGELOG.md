@@ -2,6 +2,17 @@
 
 All notable changes to ZaiMem are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is semver.
 
+## [1.8.1] — Embeddable dashboard (preview & IDE-panel fix)
+
+### Fixed
+- **Dashboard refused to render inside preview gateways / chat sidebars / IDE webview panels** ("open in dedicated browser"): v1.8.0's `Content-Security-Policy: frame-ancestors 'none'` plus `X-Frame-Options: SAMEORIGIN` blocked every iframe embedding, including trusted preview environments. Both directives removed; the remaining CSP stays self-locked (`default-src 'self'`, `object-src 'none'`, `upgrade-insecure-requests`) with HSTS, nosniff, Referrer-Policy, Permissions-Policy and COOP unchanged.
+
+### Security note
+- Framing is now open **by design**: ZaiMem holds **no cookies** — auth is a PAT sent via explicit `Authorization` headers, which browsers never attach cross-site. With no ambient credentials there is nothing for a clickjacking frame to hijack, so embeddability costs no real attack surface. (CSP `frame-ancestors` only matters where cookie sessions auto-attach; if cookie auth is ever introduced, revisit with an explicit allow-list.)
+
+### Verified
+- e2e **156 checks, all green**; GitHub engine suite 26 checks green; live header audit confirms the frame directives are gone while every other header is byte-identical to v1.8.0.
+
 ## [1.8.0] — Enterprise front page, onboarding, data export & hardening
 
 ### Changed

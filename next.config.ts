@@ -4,6 +4,13 @@ import type { NextConfig } from "next";
  * Content-Security-Policy — v1.8 hardening (continues the v1.7.2 audit).
  * Next.js requires 'unsafe-inline'/'unsafe-eval' for its hydration bootstrap
  * and dev overlay; everything else is locked to 'self'.
+ *
+ * v1.8.1: no `frame-ancestors` / `X-Frame-Options`. The dashboard is a
+ * first-class embed (chat sidebars, IDE panels, preview gateways) and the
+ * app holds no cookies — auth is PAT via explicit Authorization headers,
+ * which browsers never attach cross-site. With no ambient credentials a
+ * clickjacking frame has nothing to hijack, so framing stays open while
+ * every other directive remains locked to 'self'.
  */
 const csp = [
   "default-src 'self'",
@@ -15,7 +22,6 @@ const csp = [
   "manifest-src 'self'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-ancestors 'none'",
   "object-src 'none'",
   "upgrade-insecure-requests",
 ].join("; ");
@@ -32,7 +38,6 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Content-Security-Policy", value: csp },
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
