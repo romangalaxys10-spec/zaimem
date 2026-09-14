@@ -40,6 +40,86 @@ const TAB_TRIGGER_CLOUD =
   "transition-colors hover:border-white/10 hover:bg-white/[0.06] hover:text-white " +
   "data-[state=active]:border-emerald-500/30 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-100";
 
+/* ── onboarding checklist — progress auto-detected from real signals ── */
+
+function OnboardingCard({
+  sessions,
+  memories,
+  ghLinked,
+  onGo,
+}: {
+  sessions: number;
+  memories: number;
+  ghLinked: boolean | null;
+  onGo: (tab: string) => void;
+}) {
+  // dashboard renders client-side only (post-token), so a lazy localStorage
+  // read is hydration-safe and needs no effect
+  const [dismissed, setDismissed] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem("zm.onboard.dismissed") === "1",
+  );
+
+  const steps = [
+    { label: "Create your account", hint: "Done — your private token is live.", done: true, cta: null as string | null },
+    { label: "Connect an agent & boot a session", hint: "Paste the magic prompt into any MCP agent.", done: sessions > 0, cta: sessions > 0 ? null : "connect" },
+    { label: "Save your first memory", hint: "Facts, decisions and preferences persist automatically.", done: memories > 0, cta: memories > 0 ? null : "memory" },
+    { label: "Mirror to your own GitHub (optional)", hint: "Free private-repo backup of everything.", done: !!ghLinked, cta: ghLinked ? null : "cloud" },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+  const complete = doneCount === steps.length;
+
+  if (complete || dismissed) return null;
+
+  return (
+    <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+          <Feather className="h-4 w-4 text-violet-300" aria-hidden /> Getting started
+          <span className="font-mono text-[11px] font-normal text-zinc-500">{doneCount}/{steps.length}</span>
+        </h3>
+        <button
+          onClick={() => { localStorage.setItem("zm.onboard.dismissed", "1"); setDismissed(true); }}
+          className="text-[11px] text-zinc-500 transition-colors hover:text-zinc-300"
+          aria-label="Dismiss getting started checklist"
+        >
+          Dismiss
+        </button>
+      </div>
+      <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
+        <div className="h-full rounded-full bg-violet-500/70 transition-all duration-500" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
+      </div>
+      <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
+        {steps.map((s) => (
+          <li key={s.label} className="flex items-start justify-between gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <span
+                className={`mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border ${
+                  s.done ? "border-emerald-500/40 bg-emerald-500/15" : "border-white/15 bg-white/[0.03]"
+                }`}
+                aria-hidden
+              >
+                {s.done && <Check className="h-3 w-3 text-emerald-400" />}
+              </span>
+              <div className="min-w-0">
+                <p className={`text-[12.5px] font-medium leading-4 ${s.done ? "text-zinc-500 line-through decoration-zinc-600" : "text-zinc-200"}`}>
+                  {s.label}
+                </p>
+                {!s.done && <p className="mt-0.5 text-[11px] leading-4 text-zinc-500">{s.hint}</p>}
+              </div>
+            </div>
+            {s.cta && (
+              <Button size="sm" variant="outline" onClick={() => onGo(s.cta as string)}
+                className="h-7 shrink-0 rounded-md border-white/10 bg-white/[0.04] px-2.5 text-[11px] text-zinc-300 hover:bg-white/[0.09] hover:text-white">
+                Go <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function Dashboard({ token, onLogout }: DashboardProps) {
   const [info, setInfo] = useState<AuthInfo | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -252,6 +332,14 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
             <Github className="h-3.5 w-3.5" /> Backed up: your memory auto-syncs to your private GitHub repo (free storage). <button onClick={() => setTab("cloud")} className="underline underline-offset-2 hover:text-emerald-200">Manage →</button>
           </div>
         )}
+
+        {/* getting-started checklist — auto-hides when every step is done */}
+        <OnboardingCard
+          sessions={stats?.sessions ?? 0}
+          memories={stats?.memories ?? 0}
+          ghLinked={ghLinked}
+          onGo={setTab}
+        />
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="mb-5 flex h-auto w-full flex-wrap gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">

@@ -250,7 +250,7 @@ Stack: **Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · 
 ## Testing
 
 ```bash
-npx tsx scripts/e2e-test.ts      # 150 checks — auth, MCP tools & packs, sessions, projects, meetings, dedupe, GitHub guards …
+npx tsx scripts/e2e-test.ts      # 156 checks — auth, MCP tools & packs, sessions, projects, meetings, export, dedupe, GitHub guards …
 npx tsx scripts/e2e-github-unit.ts   # 26 engine checks — full sync engine vs mock GitHub API
 ```
 
@@ -262,7 +262,9 @@ npx tsx scripts/e2e-github-unit.ts   # 26 engine checks — full sync engine vs 
 - GitHub PATs are encrypted at rest (**AES-256-GCM**, scrypt-derived key from `ZAIMEM_SECRET`) and never returned by the API; legacy rows are transparently re-encrypted on load.
 - **Rate limiting**: auth init 60 req / 5 min per IP; MCP endpoint 1200 req / min per token.
 - **JSON-RPC hardening**: batches capped at 25 requests; MCP sessions evicted after 24 h idle (10 k cap); verbose error scrubbing.
-- **Security headers** (HSTS, X-Content-Type-Options, Referrer-Policy, X-Frame-Options) on every response.
+- **Security headers** (v1.8): Content-Security-Policy, HSTS, X-Content-Type-Options, Referrer-Policy, X-Frame-Options on every response.
+- **Strict type-checked builds** (v1.8): `next build` fails on TypeScript errors — enforced in CI.
+- **Data portability** (v1.8): `GET /api/export` downloads the full account (memories, sessions, ledger, skills, tool packs, project teams) as one JSON archive — no vectors, no credentials.
 - The SQLite database and `.env` are local-only and excluded from version control. A full security audit (v1.7.2) is reproduced by `scripts/sec-report-*.py`.
 
 ## Community & links

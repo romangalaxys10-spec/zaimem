@@ -6,22 +6,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   BrainCircuit, KeyRound, DatabaseZap, Gauge, ScanSearch,
-  Layers, ShieldCheck, Sparkles, Loader2, ArrowRight, Github,
-  Globe, Send, Newspaper, LifeBuoy, Check, Terminal, Lock, RefreshCw,
+  Layers, ShieldCheck, Loader2, ArrowRight, Github,
+  Check, Terminal, Lock, RefreshCw, FileJson, Braces,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Feature demos — small looping CSS animations that show how each
-   feature works. All live inside `.zm-anim` containers; the loops are
-   pure CSS keyframes declared in globals.css and disabled wholesale
-   under prefers-reduced-motion.
+   Design language — "enterprise instrument" (Linear / Vercel / Stripe school)
+   · one neutral near-black surface, hairline borders, no ambient glow
+   · a single accent (violet) used sparingly; color otherwise is semantic
+     (emerald = success/recall, amber = compression, rose = threat/blocked)
+   · real product artifacts instead of illustration: config JSON, agent
+     wordmarks, live tool-call loops, audited security claims
+   · all loops are pure CSS (globals.css zm-*) and disabled under
+     prefers-reduced-motion
    ────────────────────────────────────────────────────────────────────── */
 
 /** memory chips embed into a breathing vector grid */
 function DemoMemory() {
   const chips = [
     { t: "fact · deploy key rotates Friday", d: "0s" },
-    { t: "pref · violet UI accents", d: "0.9s" },
+    { t: "pref · concise answers", d: "0.9s" },
     { t: "decision · Postgres 16 over 15", d: "1.8s" },
   ];
   return (
@@ -30,19 +34,19 @@ function DemoMemory() {
         {chips.map((c) => (
           <div
             key={c.t}
-            className="rounded-md border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-[10px] leading-3 text-violet-200"
+            className="rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[10px] leading-3 text-zinc-300"
             style={{ animation: `zm-in 4.5s ease-in-out ${c.d} infinite both` }}
           >
             {c.t}
           </div>
         ))}
       </div>
-      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden />
+      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-600" aria-hidden />
       <div className="grid w-1/2 grid-cols-6 gap-1.5">
         {Array.from({ length: 18 }).map((_, i) => (
           <span
             key={i}
-            className="h-2 w-2 rounded-full bg-violet-400"
+            className="h-2 w-2 rounded-full bg-violet-400/80"
             style={{ animation: `zm-dot 2.4s ease-in-out ${i * 0.13}s infinite` }}
           />
         ))}
@@ -51,7 +55,7 @@ function DemoMemory() {
   );
 }
 
-/** scattered notes assemble into one glowing context block */
+/** scattered notes assemble into one context block */
 function DemoEnhancer() {
   const bars = ["w-3/4", "w-1/2", "w-2/3"];
   return (
@@ -60,14 +64,14 @@ function DemoEnhancer() {
         {bars.map((w, i) => (
           <div
             key={i}
-            className={`h-1.5 ${w} rounded-full bg-zinc-600`}
+            className={`h-1.5 ${w} rounded-full bg-zinc-700`}
             style={{ animation: `zm-in 4.5s ease-in-out ${i * 0.6}s infinite both` }}
           />
         ))}
       </div>
-      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden />
+      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-600" aria-hidden />
       <div
-        className="rounded-lg border bg-black/40 p-2.5"
+        className="rounded-lg border border-white/[0.08] bg-black/40 p-2.5"
         style={{ animation: "zm-glow 3s ease-in-out infinite" }}
       >
         <div className="mb-1.5 flex items-center gap-1 text-[9px] font-medium text-emerald-300">
@@ -86,16 +90,16 @@ function DemoEnhancer() {
 function DemoTokens() {
   return (
     <div className="zm-anim flex h-full flex-col justify-center gap-2.5 px-5">
-      <div className="flex items-center gap-2 text-[9px] text-zinc-400">
-        <Gauge className="h-3 w-3 text-amber-400" /> history
-        <span className="h-2 rounded-full bg-amber-400/80" style={{ animation: "zm-shrink 4.5s ease-in-out infinite" }} />
+      <div className="flex items-center gap-2 text-[9px] text-zinc-500">
+        <Gauge className="h-3 w-3" /> history
+        <span className="h-2 rounded-full bg-zinc-600" style={{ animation: "zm-shrink 4.5s ease-in-out infinite" }} />
       </div>
-      <div className="flex items-center gap-2 text-[9px] text-zinc-400">
-        <Terminal className="h-3 w-3 text-amber-400" /> digest
-        <span className="h-2 w-[26%] rounded-full bg-amber-300/90" />
-        <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-amber-300">−62%</span>
+      <div className="flex items-center gap-2 text-[9px] text-zinc-500">
+        <Terminal className="h-3 w-3" /> digest
+        <span className="h-2 w-[26%] rounded-full bg-violet-400/80" />
+        <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-violet-300">−62%</span>
       </div>
-      <p className="text-[9px] text-zinc-500">1,240 → 470 tokens · counted in your dashboard</p>
+      <p className="text-[9px] text-zinc-600">1,240 → 470 tokens · counted in your dashboard</p>
     </div>
   );
 }
@@ -103,21 +107,16 @@ function DemoTokens() {
 /** skill pills trigger themselves in sequence */
 function DemoSkills() {
   const skills = [
-    { n: "smart", d: "0s", c: "fuchsia" },
-    { n: "context-boost", d: "0.75s", c: "violet" },
-    { n: "token-frugal", d: "1.5s", c: "amber" },
+    { n: "smart", d: "0s" },
+    { n: "context-boost", d: "0.75s" },
+    { n: "token-frugal", d: "1.5s" },
   ];
-  const tone: Record<string, string> = {
-    fuchsia: "border-fuchsia-500/50 bg-fuchsia-500/15 text-fuchsia-200",
-    violet: "border-violet-500/50 bg-violet-500/15 text-violet-200",
-    amber: "border-amber-500/50 bg-amber-500/15 text-amber-200",
-  };
   return (
     <div className="zm-anim flex h-full items-center justify-center gap-2 px-4">
       {skills.map((s) => (
         <span
           key={s.n}
-          className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${tone[s.c]}`}
+          className="rounded-full border border-white/[0.1] bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] text-zinc-300"
           style={{ animation: `zm-in 3s ease-in-out ${s.d} infinite both` }}
         >
           {s.n}
@@ -132,17 +131,17 @@ function DemoToken() {
   const parts = ["x7k2", "m9qa", "1c4d"];
   return (
     <div className="zm-anim flex h-full items-center justify-center gap-1.5 px-4 font-mono text-xs">
-      <span className="font-semibold text-cyan-300">zm_</span>
+      <span className="font-semibold text-zinc-100">zm_</span>
       {parts.map((p, i) => (
         <span
           key={p}
-          className="rounded bg-cyan-500/10 px-1.5 py-1 text-cyan-200"
+          className="rounded bg-white/[0.06] px-1.5 py-1 text-zinc-300"
           style={{ animation: `zm-in 3.6s ease-in-out ${i * 0.55}s infinite both` }}
         >
           {p}
         </span>
       ))}
-      <span className="text-cyan-300" style={{ animation: "zm-blink 1s steps(1) infinite" }}>▍</span>
+      <span className="text-zinc-400" style={{ animation: "zm-blink 1s steps(1) infinite" }}>▍</span>
       <Check
         className="ml-1 h-3.5 w-3.5 text-emerald-400"
         style={{ animation: "zm-in 3.6s ease-in-out 1.9s infinite both" }}
@@ -155,44 +154,44 @@ function DemoToken() {
 function DemoCloud() {
   return (
     <div className="zm-anim relative flex h-full items-center px-6">
-      <div className="relative h-px flex-1 bg-gradient-to-r from-violet-500/50 via-white/20 to-emerald-500/50">
-        <span className="absolute -top-[3px] h-1.5 w-1.5 rounded-full bg-violet-300" style={{ animation: "zm-travel 2.8s linear infinite" }} />
-        <span className="absolute -top-[3px] h-1.5 w-1.5 rounded-full bg-emerald-300" style={{ animation: "zm-travel-rev 2.8s linear 1.4s infinite" }} />
+      <div className="relative h-px flex-1 bg-white/[0.12]">
+        <span className="absolute -top-[3px] h-1.5 w-1.5 rounded-full bg-zinc-200" style={{ animation: "zm-travel 2.8s linear infinite" }} />
+        <span className="absolute -top-[3px] h-1.5 w-1.5 rounded-full bg-zinc-400" style={{ animation: "zm-travel-rev 2.8s linear 1.4s infinite" }} />
       </div>
       <div className="absolute left-2 flex flex-col items-center gap-1">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-600">
-          <BrainCircuit className="h-3.5 w-3.5 text-white" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.06]">
+          <BrainCircuit className="h-3.5 w-3.5 text-zinc-200" />
         </div>
-        <span className="text-[8px] text-zinc-500">ZaiMem</span>
+        <span className="text-[8px] text-zinc-600">ZaiMem</span>
       </div>
       <div className="absolute right-2 flex flex-col items-center gap-1">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/20 bg-white/10">
-          <Github className="h-3.5 w-3.5 text-zinc-100" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.06]">
+          <Github className="h-3.5 w-3.5 text-zinc-200" />
         </div>
-        <span className="text-[8px] text-zinc-500">your repo</span>
+        <span className="text-[8px] text-zinc-600">your repo</span>
       </div>
     </div>
   );
 }
 
-/** an injected instruction is deflected by the shield */
+/** an injected instruction is deflected by the guard */
 function DemoGuard() {
   return (
     <div className="zm-anim relative flex h-full items-center justify-end gap-3 px-5">
       <div
-        className="absolute left-5 top-1/2 -translate-y-1/2 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[9px] text-rose-300"
+        className="absolute left-5 top-1/2 -translate-y-1/2 rounded-md border border-rose-500/30 bg-rose-500/[0.07] px-2 py-1 text-[9px] text-rose-300/90"
         style={{ animation: "zm-deflect 3.6s ease-in-out infinite" }}
       >
         ignore previous instructions…
       </div>
       <div
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-500/30 bg-rose-500/10"
+        className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-500/25 bg-rose-500/[0.06]"
         style={{ animation: "zm-shield 3.6s ease-in-out infinite" }}
       >
-        <ShieldCheck className="h-4.5 w-4.5 text-rose-300" />
+        <ShieldCheck className="h-4 w-4 text-rose-300" />
       </div>
       <span
-        className="rounded-full bg-rose-500/15 px-2 py-0.5 text-[9px] font-semibold text-rose-300"
+        className="rounded-full border border-rose-500/20 bg-rose-500/[0.08] px-2 py-0.5 text-[9px] font-semibold text-rose-300"
         style={{ animation: "zm-in 3.6s ease-in-out 1.7s infinite both" }}
       >
         blocked · data ≠ instructions
@@ -206,59 +205,45 @@ function DemoGuard() {
 const FEATURES = [
   {
     icon: DatabaseZap,
-    title: "Auto Vector Memory",
-    accent: "text-violet-400",
-    bg: "bg-violet-500/10",
-    body: "Every durable fact, decision and preference is embedded on-device (384-dim hashed n-gram vectors) and stored in your private memory space. Near-duplicates auto-merge.",
+    title: "Auto vector memory",
+    body: "Every durable fact, decision and preference is embedded on-device (384-dim hashed n-gram vectors) and stored in your private memory space. Near-duplicates auto-merge at 0.94 / 0.80 similarity thresholds.",
     Demo: DemoMemory,
     wide: true,
   },
   {
     icon: ScanSearch,
-    title: "Context Enhancer",
-    accent: "text-emerald-400",
-    bg: "bg-emerald-500/10",
+    title: "Context enhancer",
     body: "Before each non-trivial answer the agent calls enhance_context: relevant cross-session memories are recalled, ranked and injected as a silent inventory block.",
     Demo: DemoEnhancer,
   },
   {
     icon: Gauge,
-    title: "Token Saver",
-    accent: "text-amber-400",
-    bg: "bg-amber-500/10",
+    title: "Token saver",
     body: "When history bloats, save_tokens compresses it into a dense digest (LLM + extractive fallback). Every saved token is counted in your dashboard.",
     Demo: DemoTokens,
   },
   {
     icon: Layers,
-    title: "Smart-Skill Orchestration",
-    accent: "text-fuchsia-400",
-    bg: "bg-fuchsia-500/10",
-    body: "Ported from zcode-smart-skill: GVS5H ledger loop, auto-trigger detection, difficulty-adaptive budgets (2/6/12), reflection schema and workflow memory.",
+    title: "Smart-skill orchestration",
+    body: "GVS5H ledger loop, auto-trigger detection, difficulty-adaptive budgets (2/6/12), reflection schema and workflow memory — ported from zcode-smart-skill.",
     Demo: DemoSkills,
   },
   {
     icon: KeyRound,
-    title: "Instant Private Token",
-    accent: "text-cyan-400",
-    bg: "bg-cyan-500/10",
-    body: "No signup, no password. You get an automated private token (zm_…) that IS your account — login anywhere with it, revoke by regenerating.",
+    title: "Instant private token",
+    body: "No signup, no password. A private token (zm_…) IS your account — login anywhere with it, revoke by regenerating.",
     Demo: DemoToken,
   },
   {
     icon: Github,
     title: "GitHub Cloud DB",
-    accent: "text-zinc-100",
-    bg: "bg-zinc-500/10",
-    body: "Pair your GitHub PAT — ZaiMem auto-creates a private repo in your account and mirrors every session, memory, vector and skill into it. Your data, your repo, your cloud DB.",
+    body: "Pair a PAT and ZaiMem auto-creates a private repo in your account, mirroring every session, memory, vector and skill in real time. Your data, your repo.",
     Demo: DemoCloud,
   },
   {
     icon: ShieldCheck,
-    title: "Prompt-Injection Guard",
-    accent: "text-rose-400",
-    bg: "bg-rose-500/10",
-    body: "Ledger contents are treated as DATA, never instructions. The TRUST clause from smart-skill E10 is baked into every tool response.",
+    title: "Prompt-injection guard",
+    body: "Ledger contents are treated as data, never instructions. The TRUST clause from smart-skill E10 is baked into every tool response.",
     Demo: DemoGuard,
   },
 ];
@@ -276,8 +261,8 @@ const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
       { name: "Token accounting", desc: "every saved token counted" },
       { name: "Document ingestion", desc: "PDF / DOCX / TXT → chunked vectors" },
       { name: "Pinned & forget", desc: "always-in-force pins · preview-then-delete" },
-      { name: "Meeting intelligence", desc: "transcript → summary → action items (Tactiq-style)" },
-      { name: "HEADROOM compression", desc: "togglable harder compression of context blocks" },
+      { name: "Meeting intelligence", desc: "transcript → summary → action items" },
+      { name: "HEADROOM compression", desc: "togglable harder context compression" },
     ],
   },
   {
@@ -292,8 +277,8 @@ const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
       { name: "Session handoffs", desc: "paste-ready prompt for any fresh agent chat" },
       { name: "Project agent teams", desc: "connect agents, shared brief, files & memory" },
       { name: "Universal tools", desc: "web search · web fetch · calc · time · think" },
-      { name: "MCP tool packs", desc: "33 tools in 8 packs — every pack on/off from the dashboard" },
-      { name: "8 SKILL.md skills", desc: "smart, meeting-notes, web-research, project-team, doc-memory & more" },
+      { name: "MCP tool packs", desc: "33 tools in 8 packs — every pack on/off" },
+      { name: "8 SKILL.md skills", desc: "smart, meeting-notes, web-research & more" },
     ],
   },
   {
@@ -301,39 +286,79 @@ const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
     items: [
       { name: "GitHub Cloud DB", desc: "your private repo mirrors everything" },
       { name: "Scheduled daily backup", desc: "heartbeat snapshot ~every 24h" },
-      { name: "One-PAT account rescue", desc: "new account? re-sync everything from your old GitHub repo" },
+      { name: "One-PAT account rescue", desc: "re-sync everything from your old repo" },
       { name: "Point-in-time restore", desc: "roll memories back to any snapshot commit" },
       { name: "AES-256 export / import", desc: "encrypted, portable archives" },
+      { name: "JSON account export", desc: "one-click full-data download" },
       { name: "Global search ⌘K", desc: "sessions, memories, ledger, skills" },
-      { name: "Kind & date filters", desc: "24h → 1 year, per category" },
     ],
   },
   {
     group: "Platform & privacy",
     items: [
       { name: "MCP server", desc: "33 tools · 4 resources · JSON-RPC 2.0" },
-      { name: "Tool-pack gating", desc: "agents only see the capability groups you allow" },
-      { name: "Batch calls & CORS", desc: "streamable HTTP transport" },
+      { name: "Tool-pack gating", desc: "agents only see what you allow" },
       { name: "Prompt-injection guard", desc: "ledger is data, never instructions" },
       { name: "Local vector engine", desc: "no external embedding APIs" },
+      { name: "Hardened by audit", desc: "v1.7.2 full security audit & fixes" },
       { name: "Docker deploy", desc: "one command, GHCR image" },
     ],
   },
 ];
 
 const STEPS = [
-  { n: "01", title: "Open ZaiMem", body: "You're here. A private token is generated for you automatically — no email, no password." },
-  { n: "02", title: "Add the MCP endpoint", body: "In any MCP-capable agent (chat.z.ai, Claude Code, Cursor, Cline, Windsurf, Trae, Antigravity, zcode, Koda, Pi, Grok…), add the ZaiMem MCP server with your endpoint URL + token." },
+  { n: "01", title: "Open ZaiMem", body: "A private token is generated for you automatically — no email, no password." },
+  { n: "02", title: "Add the MCP endpoint", body: "In any MCP-capable agent (chat.z.ai, Claude Code, Cursor, Cline, Windsurf, Trae, Antigravity, zcode, Koda, Pi, Grok…), add the ZaiMem server with your endpoint URL + token." },
   { n: "03", title: "Paste the magic prompt", body: "The dashboard hands you a ready-made prompt containing the endpoint and your key." },
-  { n: "04", title: "Chat enhanced", body: "Session auto-syncs: memories boot, context gets boosted, tokens get saved, skills auto-trigger." },
+  { n: "04", title: "Chat enhanced", body: "The session auto-syncs: memories boot, context gets boosted, tokens get saved, skills auto-trigger." },
 ];
 
-const HERO_BADGES = [
-  { icon: Sparkles, label: "Built with GLM 5.3 Flash", href: "https://z.ai/subscribe?ic=ROK78RJKNW", color: "text-violet-400" },
-  { icon: Globe, label: "Lead by Roman · Rommark.Dev", href: "https://rommark.dev", color: "text-rose-400" },
-  { icon: Send, label: "Telegram Blog", href: "https://t.me/VibeCodePrompterSystem", color: "text-sky-400" },
-  { icon: Newspaper, label: "The Claw Blog", href: "https://claw.rommark.dev", color: "text-emerald-400" },
-  { icon: LifeBuoy, label: "Author of Z-Assist Project", href: "https://zhelp.space-z.ai/", color: "text-amber-400" },
+const AGENTS = ["chat.z.ai", "Claude Code", "Cursor", "Cline", "Windsurf", "Trae", "Antigravity", "zcode", "Koda", "Pi", "Grok"];
+
+const STATS = [
+  { v: "33", l: "MCP tools" },
+  { v: "4", l: "MCP resources" },
+  { v: "8", l: "togglable tool packs" },
+  { v: "150", l: "e2e checks, green" },
+];
+
+const SECURITY = [
+  { icon: Lock, t: "SHA-256 token storage", d: "Plaintext tokens are never persisted; login tokens live as hashes." },
+  { icon: FileJson, t: "AES-256-GCM at rest", d: "GitHub PATs encrypted with a scrypt-derived key from ZAIMEM_SECRET." },
+  { icon: Gauge, t: "Rate limiting", d: "Auth init 60 req / 5 min per IP; MCP 1200 req / min per token." },
+  { icon: ShieldCheck, t: "Injection guard", d: "Memory is data, never instructions — enforced in every tool response." },
+  { icon: Braces, t: "Audited & hardened", d: "Full security audit in v1.7.2: token migration, batch caps, security headers." },
+];
+
+const FOOTER_COLS: { h: string; links: { label: string; href: string; external?: boolean }[] }[] = [
+  {
+    h: "Product",
+    links: [
+      { label: "Features", href: "#features" },
+      { label: "What's included", href: "#included" },
+      { label: "How it works", href: "#how" },
+      { label: "Get started", href: "#start" },
+    ],
+  },
+  {
+    h: "Resources",
+    links: [
+      { label: "GitHub repository", href: "https://github.com/romangalaxys10-spec/zaimem", external: true },
+      { label: "README & docs", href: "https://github.com/romangalaxys10-spec/zaimem#readme", external: true },
+      { label: "Changelog", href: "https://github.com/romangalaxys10-spec/zaimem/blob/main/CHANGELOG.md", external: true },
+      { label: "Docker image (GHCR)", href: "https://github.com/romangalaxys10-spec/zaimem/pkgs/container/zaimem", external: true },
+    ],
+  },
+  {
+    h: "Project",
+    links: [
+      { label: "Built with GLM 5.3 Flash", href: "https://z.ai/subscribe?ic=ROK78RJKNW", external: true },
+      { label: "Lead by Roman · Rommark.Dev", href: "https://rommark.dev", external: true },
+      { label: "Telegram blog", href: "https://t.me/VibeCodePrompterSystem", external: true },
+      { label: "The Claw blog", href: "https://claw.rommark.dev", external: true },
+      { label: "Z-Assist Project", href: "https://zhelp.space-z.ai/", external: true },
+    ],
+  },
 ];
 
 /* ── hero demo window: one agent chat, looping the whole pipeline ─────── */
@@ -342,40 +367,40 @@ function HeroDemo() {
   const rows = [
     { d: "0s", el: (
       <div className="flex justify-end">
-        <div className="max-w-[75%] rounded-2xl rounded-br-md bg-violet-600/30 px-3.5 py-2 text-xs leading-relaxed text-violet-50 ring-1 ring-violet-500/30">
+        <div className="max-w-[75%] rounded-2xl rounded-br-md bg-white/[0.07] px-3.5 py-2 text-xs leading-relaxed text-zinc-100 ring-1 ring-white/[0.08]">
           Remember: the deploy key rotates on Friday. I prefer short answers.
         </div>
       </div>
     ) },
     { d: "2.4s", el: (
       <div className="flex items-center gap-2">
-        <span className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 font-mono text-[10px] text-violet-200">zaimem_remember ✓</span>
-        <span className="text-[10px] text-zinc-400">stored as fact · 384-dim vector embedded</span>
+        <span className="rounded-lg border border-white/[0.1] bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] text-zinc-200">zaimem_remember ✓</span>
+        <span className="text-[10px] text-zinc-500">stored as fact · 384-dim vector embedded</span>
       </div>
     ) },
     { d: "4.8s", el: (
-      <div className="rounded-xl border border-emerald-500/25 bg-black/40 p-3" style={{ animation: "zm-row 14.4s ease-in-out 4.8s infinite both, zm-glow 4s ease-in-out 4.8s infinite" }}>
+      <div className="rounded-xl border border-white/[0.08] bg-black/40 p-3" style={{ animation: "zm-row 14.4s ease-in-out 4.8s infinite both, zm-glow 4s ease-in-out 4.8s infinite" }}>
         <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium text-emerald-300">
           <ScanSearch className="h-3 w-3" /> enhance_context → 2 memories recalled
         </div>
-        <p className="text-[10px] leading-relaxed text-zinc-400">deploy key rotates Friday · user prefers short answers</p>
+        <p className="text-[10px] leading-relaxed text-zinc-500">deploy key rotates Friday · user prefers short answers</p>
       </div>
     ) },
     { d: "7.2s", el: (
       <div className="flex items-center gap-2">
-        <span className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 font-mono text-[10px] text-amber-200">save_tokens ✓</span>
-        <span className="text-[10px] text-zinc-400">digest 1,240 → 470 (−62%)</span>
+        <span className="rounded-lg border border-white/[0.1] bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] text-zinc-200">save_tokens ✓</span>
+        <span className="text-[10px] text-zinc-500">digest 1,240 → 470 (−62%)</span>
       </div>
     ) },
   ];
   return (
-    <div className="zm-anim overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/50 backdrop-blur-sm" style={{ animation: "zm-floaty 7s ease-in-out infinite" }}>
+    <div className="zm-anim overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] shadow-2xl shadow-black/40">
       {/* window chrome */}
-      <div className="flex items-center gap-2 border-b border-white/5 px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-rose-500/70" />
-        <span className="h-2.5 w-2.5 rounded-full bg-amber-500/70" />
-        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/70" />
-        <span className="ml-2 text-[11px] text-zinc-400">any MCP agent — Claude Code · Cursor · Cline · chat.z.ai…</span>
+      <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-2.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+        <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+        <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+        <span className="ml-2 font-mono text-[11px] text-zinc-500">any MCP agent — Claude Code · Cursor · Cline · chat.z.ai</span>
       </div>
       {/* looping conversation */}
       <div className="flex h-[240px] flex-col justify-end gap-2.5 px-4 pb-3 pt-4 sm:h-[260px]">
@@ -386,10 +411,31 @@ function HeroDemo() {
         ))}
       </div>
       {/* status bar */}
-      <div className="flex items-center gap-2 border-t border-white/5 px-4 py-2 text-[10px] text-zinc-400">
+      <div className="flex items-center gap-2 border-t border-white/[0.06] px-4 py-2 font-mono text-[10px] text-zinc-500">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" style={{ animation: "zm-dot 2s ease-in-out infinite" }} />
         session synced · auto-sync on · memory booted
       </div>
+    </div>
+  );
+}
+
+/** MCP config block — the real artifact an engineer pastes */
+function ConfigBlock({ baseUrl }: { baseUrl: string }) {
+  const cfg = `{
+  "mcpServers": {
+    "zaimem": {
+      "url": "${baseUrl}/api/mcp",
+      "headers": { "Authorization": "Bearer zm_…" }
+    }
+  }
+}`;
+  return (
+    <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-black/50">
+      <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-2">
+        <span className="font-mono text-[11px] text-zinc-500">mcp.json</span>
+        <span className="font-mono text-[10px] text-zinc-600">streamable HTTP · JSON-RPC 2.0</span>
+      </div>
+      <pre className="overflow-x-auto px-4 py-3.5 font-mono text-[11px] leading-relaxed text-zinc-300">{cfg}</pre>
     </div>
   );
 }
@@ -441,39 +487,40 @@ export function Landing({ onToken }: LandingProps) {
   }
 
   const reveal = {
-    initial: { opacity: 0, y: 24 },
+    initial: { opacity: 0, y: 20 },
     whileInView: { opacity: 1, y: 0 },
     viewport: { once: true, margin: "-60px" },
   } as const;
 
-  return (
-    <div className="min-h-screen bg-[#08080c] text-zinc-100 antialiased">
-      {/* ambient glow */}
-      <div className="pointer-events-none fixed inset-0" aria-hidden>
-        <div className="absolute -top-48 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-violet-600/15 blur-[160px]" />
-        <div className="absolute bottom-0 -right-40 h-[380px] w-[520px] rounded-full bg-emerald-500/8 blur-[160px]" />
-      </div>
+  const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-      {/* glass nav */}
-      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#08080c]/70 backdrop-blur-xl">
-        <nav className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
+  return (
+    <div className="min-h-screen bg-[#0a0a0b] text-zinc-100 antialiased">
+      {/* single, restrained top glow */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-[420px] bg-[radial-gradient(60%_100%_at_50%_0%,rgba(139,124,246,0.07),transparent_70%)]" aria-hidden />
+
+      {/* nav */}
+      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#0a0a0b]/80 backdrop-blur-xl">
+        <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6" aria-label="Main">
           <a href="#start" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-900/40">
-              <BrainCircuit className="h-4.5 w-4.5 text-white" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.06]">
+              <BrainCircuit className="h-4 w-4 text-zinc-100" />
             </div>
             <span className="text-[15px] font-semibold tracking-tight">ZaiMem</span>
+            <span className="ml-1 hidden rounded-full border border-white/[0.08] px-2 py-0.5 font-mono text-[10px] text-zinc-500 sm:inline">v1.8</span>
           </a>
-          <div className="hidden items-center gap-7 text-[13px] text-zinc-400 md:flex">
-            <a href="#features" className="transition-colors hover:text-white">Features</a>
-            <a href="#included" className="transition-colors hover:text-white">What's included</a>
-            <a href="#how" className="transition-colors hover:text-white">How it works</a>
-            <a href="https://github.com/romangalaxys10-spec/zaimem" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 transition-colors hover:text-white">
+          <div className="hidden items-center gap-8 text-[13px] text-zinc-400 md:flex">
+            <a href="#features" className="transition-colors hover:text-zinc-100">Features</a>
+            <a href="#included" className="transition-colors hover:text-zinc-100">Included</a>
+            <a href="#how" className="transition-colors hover:text-zinc-100">How it works</a>
+            <a href="#security" className="transition-colors hover:text-zinc-100">Security</a>
+            <a href="https://github.com/romangalaxys10-spec/zaimem" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 transition-colors hover:text-zinc-100">
               <Github className="h-3.5 w-3.5" /> GitHub
             </a>
           </div>
           <a
             href="#start"
-            className="rounded-full bg-white px-4 py-1.5 text-[13px] font-medium text-black transition-transform hover:scale-[1.04] active:scale-95"
+            className="rounded-lg bg-zinc-100 px-3.5 py-1.5 text-[13px] font-medium text-zinc-900 transition-colors hover:bg-white"
           >
             Get started
           </a>
@@ -482,289 +529,339 @@ export function Landing({ onToken }: LandingProps) {
 
       <main className="relative z-10">
         {/* ── hero ─────────────────────────────────────────────────────── */}
-        <section id="start" className="mx-auto max-w-5xl scroll-mt-20 px-4 pb-20 pt-20 text-center sm:px-6 sm:pt-28">
-          <motion.div {...reveal} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs text-zinc-300">
-              <Sparkles className="h-3 w-3 text-violet-400" />
-              MCP-native · Works with every MCP agent
+        <section id="start" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-16 pt-20 text-center sm:px-6 sm:pt-28">
+          <motion.div {...reveal} transition={{ duration: 0.5, ease }}>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-1.5 text-xs text-zinc-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-400" aria-hidden />
+              MCP-native memory · works with every MCP client
             </span>
           </motion.div>
 
           <motion.h1
             {...reveal}
-            transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto mt-6 max-w-4xl text-[44px] font-semibold leading-[1.06] tracking-[-0.03em] sm:text-6xl lg:text-7xl"
+            transition={{ duration: 0.55, delay: 0.06, ease }}
+            className="mx-auto mt-7 max-w-3xl text-[40px] font-semibold leading-[1.05] tracking-[-0.035em] text-white sm:text-6xl"
           >
-            Your AI agent sessions
-            <span className="block bg-gradient-to-r from-violet-400 via-fuchsia-300 to-emerald-300 bg-clip-text text-transparent">
-              finally remember everything.
-            </span>
+            Your agents forget.
+            <span className="block text-zinc-500">ZaiMem doesn&apos;t.</span>
           </motion.h1>
 
           <motion.p
             {...reveal}
-            transition={{ duration: 0.6, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-zinc-400 sm:text-lg"
+            transition={{ duration: 0.55, delay: 0.12, ease }}
+            className="mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-zinc-400 sm:text-[17px]"
           >
-            ZaiMem gives every AI agent a persistent vector memory, an automatic
-            context enhancer and a token saver. Works with chat.z.ai, Claude Code, Cursor,
-            Cline, Windsurf, Trae, Antigravity, zcode, Koda, Pi, Grok and any other MCP client —
-            paste one prompt and your session syncs itself.
+            Persistent vector memory, automatic context enhancement and token
+            accounting for every MCP agent — one endpoint, one token, zero setup.
           </motion.p>
 
           <motion.div
             {...reveal}
-            transition={{ duration: 0.6, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto mt-9 max-w-xl"
+            transition={{ duration: 0.55, delay: 0.18, ease }}
+            className="mx-auto mt-8 flex max-w-md flex-col items-center gap-3 sm:max-w-none sm:flex-row sm:justify-center"
           >
             <Button
               size="lg"
               onClick={createToken}
               disabled={creating}
-              className="h-12 w-full rounded-full bg-white text-[15px] font-semibold text-black shadow-xl shadow-black/40 transition-all hover:scale-[1.02] hover:bg-zinc-200 active:scale-95 sm:w-auto sm:px-8"
+              className="h-11 rounded-lg bg-zinc-100 px-6 text-[14px] font-semibold text-zinc-900 shadow-none transition-colors hover:bg-white active:bg-zinc-300"
             >
-              {creating ? <Loader2 className="mr-2 h-4.5 w-4.5 animate-spin" /> : <KeyRound className="mr-2 h-4.5 w-4.5" />}
+              {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
               {creating ? "Generating…" : "Get your private token"}
             </Button>
-            <div className="mt-5 flex items-center justify-center gap-2 text-sm text-zinc-400">
-              <span>Already have a token?</span>
-              <div className="flex gap-2">
-                <Input
-                  value={loginToken}
-                  onChange={(e) => setLoginToken(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && login()}
-                  placeholder="zm_…"
-                  className="h-9 w-44 rounded-full border-white/10 bg-white/[0.05] font-mono text-xs text-zinc-200 placeholder:text-zinc-500 focus-visible:ring-violet-500/50 sm:w-56"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={login}
-                  disabled={loggingIn || !loginToken.trim()}
-                  className="h-9 rounded-full border-white/10 bg-white/[0.05] px-3 text-zinc-200 hover:bg-white/10 hover:text-white"
-                  aria-label="Log in with token"
-                >
-                  {loggingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                </Button>
-              </div>
+            <div className="flex items-center gap-2">
+              <Input
+                value={loginToken}
+                onChange={(e) => setLoginToken(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && login()}
+                placeholder="Have a token? zm_…"
+                className="h-11 w-48 rounded-lg border-white/[0.1] bg-white/[0.03] font-mono text-xs text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-violet-500/40 sm:w-52"
+              />
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={login}
+                disabled={loggingIn || !loginToken.trim()}
+                className="h-11 rounded-lg border-white/[0.1] bg-white/[0.03] px-4 text-zinc-300 hover:bg-white/[0.07] hover:text-white"
+                aria-label="Log in with token"
+              >
+                {loggingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              </Button>
             </div>
-            {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
-            <a
-              href="#included"
-              className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-violet-300 transition-colors hover:text-violet-200"
-            >
-              See everything included <ArrowRight className="h-3 w-3 rotate-90" aria-hidden />
-            </a>
           </motion.div>
+          {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
 
-          {/* project badges */}
+          {/* agent wordmarks */}
           <motion.div
             {...reveal}
-            transition={{ duration: 0.6, delay: 0.32, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-9 flex flex-wrap items-center justify-center gap-2"
+            transition={{ duration: 0.55, delay: 0.24, ease }}
+            className="mt-14"
+            aria-label="Compatible agents"
           >
-            {HERO_BADGES.map((b) => (
-              <a
-                key={b.href}
-                href={b.href}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs text-zinc-300 transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
-              >
-                <b.icon className={`h-3.5 w-3.5 ${b.color}`} />
-                {b.label}
-              </a>
-            ))}
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-600">Works with</p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-7 gap-y-2.5">
+              {AGENTS.map((a) => (
+                <span key={a} className="text-[13px] font-medium text-zinc-500 transition-colors hover:text-zinc-300">{a}</span>
+              ))}
+            </div>
           </motion.div>
 
           {/* product demo window */}
           <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.97 }}
-            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            initial={{ opacity: 0, y: 32 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-40px" }}
-            transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto mt-16 max-w-2xl"
+            transition={{ duration: 0.65, delay: 0.1, ease }}
+            className="mx-auto mt-12 max-w-2xl"
           >
             <HeroDemo />
           </motion.div>
         </section>
 
+        {/* ── stats band ───────────────────────────────────────────────── */}
+        <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6" aria-label="Key numbers">
+          <motion.div
+            {...reveal}
+            transition={{ duration: 0.55, ease }}
+            className="grid grid-cols-2 divide-white/[0.06] rounded-2xl border border-white/[0.06] bg-white/[0.02] sm:grid-cols-4 sm:divide-x"
+          >
+            {STATS.map((s) => (
+              <div key={s.l} className="px-6 py-7 text-center">
+                <p className="font-mono text-3xl font-semibold tracking-tight text-white">{s.v}</p>
+                <p className="mt-1.5 text-xs text-zinc-500">{s.l}</p>
+              </div>
+            ))}
+          </motion.div>
+        </section>
+
         {/* ── features ─────────────────────────────────────────────────── */}
-        <section id="features" className="mx-auto max-w-5xl scroll-mt-20 px-4 pb-24 sm:px-6">
-          <motion.div {...reveal} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} className="mb-12 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Features</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.02em] sm:text-5xl">
-              Everything your agent forgets — remembered.
+        <section id="features" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
+          <motion.div {...reveal} transition={{ duration: 0.55, ease }} className="mb-12 max-w-2xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-400">Features</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.025em] text-white sm:text-4xl">
+              Seven systems. One endpoint.
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-zinc-400 sm:text-base">
-              Seven systems, one endpoint. Each card below is a live loop showing exactly what happens under the hood.
+            <p className="mt-4 text-[15px] leading-relaxed text-zinc-400">
+              Each card below is a live loop showing exactly what happens under the hood — no illustrations, no mockups.
             </p>
           </motion.div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-px overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.06] sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f, i) => (
               <motion.div
                 key={f.title}
-                initial={{ opacity: 0, y: 24 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.55, delay: (i % 3) * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.5, delay: (i % 3) * 0.06, ease }}
                 className={f.wide ? "sm:col-span-2" : ""}
               >
-                <div className="group h-full rounded-3xl border border-white/[0.07] bg-white/[0.03] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-white/15 hover:bg-white/[0.05] hover:shadow-2xl hover:shadow-black/40">
-                  <div className={`mb-4 flex h-16 items-center justify-center rounded-xl border border-white/5 bg-black/40 ${f.wide ? "h-24" : ""}`}>
+                <div className="flex h-full flex-col bg-[#0a0a0b] p-6 transition-colors duration-200 hover:bg-white/[0.02]">
+                  <div className={`mb-5 flex items-center justify-center rounded-lg border border-white/[0.05] bg-black/30 ${f.wide ? "h-24" : "h-16"}`}>
                     <f.Demo />
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${f.bg}`}>
-                      <f.icon className={`h-4 w-4 ${f.accent}`} />
-                    </div>
-                    <h3 className="text-[15px] font-semibold tracking-tight text-white">{f.title}</h3>
+                    <f.icon className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+                    <h3 className="text-[14px] font-semibold tracking-tight text-white">{f.title}</h3>
                   </div>
-                  <p className="mt-2.5 text-[13px] leading-relaxed text-zinc-400">{f.body}</p>
+                  <p className="mt-2.5 text-[13px] leading-relaxed text-zinc-500">{f.body}</p>
                 </div>
               </motion.div>
             ))}
           </div>
         </section>
 
+        {/* ── wire it in ───────────────────────────────────────────────── */}
+        <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <motion.div {...reveal} transition={{ duration: 0.55, ease }}>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-400">Setup</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-[-0.025em] text-white sm:text-4xl">
+                Wire it in under a minute.
+              </h2>
+              <p className="mt-4 text-[15px] leading-relaxed text-zinc-400">
+                ZaiMem speaks standard MCP over streamable HTTP. Point any MCP client at the endpoint with your
+                bearer token — or paste the magic prompt from the dashboard and the agent wires itself up.
+              </p>
+              <ul className="mt-6 space-y-3">
+                {[
+                  "Works in chat.z.ai, Claude Code, Cursor, Cline, Windsurf, Trae, Grok and every other MCP client",
+                  "Session auto-syncs on first message — memories boot, context enhances, tokens get counted",
+                  "33 tools, 4 resources; disable whole capability groups per user from the dashboard",
+                ].map((li) => (
+                  <li key={li} className="flex items-start gap-2.5 text-[13px] leading-relaxed text-zinc-400">
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden />
+                    {li}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+            <motion.div {...reveal} transition={{ duration: 0.55, delay: 0.1, ease }}>
+              <ConfigBlock baseUrl="https://zaimem.space-z.ai" />
+              <p className="mt-3 text-xs text-zinc-600">
+                Self-hosting? Point the URL at your own deployment — the Docker image is on GHCR.
+              </p>
+            </motion.div>
+          </div>
+        </section>
+
         {/* ── everything included ──────────────────────────────────────── */}
-        <section id="included" className="mx-auto max-w-5xl scroll-mt-20 px-4 pb-24 sm:px-6">
-          <motion.div {...reveal} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} className="mb-12 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">What&apos;s included</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.02em] sm:text-5xl">
+        <section id="included" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
+          <motion.div {...reveal} transition={{ duration: 0.55, ease }} className="mb-12 max-w-2xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-400">What&apos;s included</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.025em] text-white sm:text-4xl">
               Everything included. Nothing to wire.
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-zinc-400 sm:text-base">
+            <p className="mt-4 text-[15px] leading-relaxed text-zinc-400">
               One endpoint ships all of it. Every system below is live in the box — no plugins, no config, no extra keys.
             </p>
           </motion.div>
 
           <motion.div
             {...reveal}
-            transition={{ duration: 0.7, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-            className="rounded-[2rem] border border-white/[0.07] bg-white/[0.03] p-6 backdrop-blur-sm sm:p-10"
+            transition={{ duration: 0.6, delay: 0.08, ease }}
+            className="grid gap-10 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 sm:grid-cols-2 sm:p-10 lg:grid-cols-4"
           >
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-              {INCLUDED.map((g) => (
-                <div key={g.group}>
-                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{g.group}</h3>
-                  <ul className="mt-4 space-y-3.5">
-                    {g.items.map((it) => (
-                      <li key={it.name} className="flex items-start gap-2.5">
-                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden />
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-medium leading-4 text-zinc-200">{it.name}</p>
-                          <p className="mt-0.5 text-xs leading-4 text-zinc-500">{it.desc}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-            <div className="mt-10 flex flex-col items-center gap-2 border-t border-white/[0.06] pt-6 text-center sm:flex-row sm:justify-between sm:text-left">
-              <p className="text-[13px] text-zinc-400">
-                All of it on one private token — and the full source is on GitHub, MIT-licensed.
-              </p>
-              <a
-                href="https://github.com/romangalaxys10-spec/zaimem"
-                target="_blank"
-                rel="noreferrer"
-                className="flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-violet-300 transition-colors hover:text-violet-200"
-              >
-                <Github className="h-3.5 w-3.5" /> Read the docs
-              </a>
-            </div>
+            {INCLUDED.map((g) => (
+              <div key={g.group}>
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{g.group}</h3>
+                <ul className="mt-4 space-y-3.5">
+                  {g.items.map((it) => (
+                    <li key={it.name} className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-600" aria-hidden />
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium leading-4 text-zinc-300">{it.name}</p>
+                        <p className="mt-0.5 text-xs leading-4 text-zinc-600">{it.desc}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </motion.div>
         </section>
 
         {/* ── how it works ─────────────────────────────────────────────── */}
-        <section id="how" className="mx-auto max-w-5xl scroll-mt-20 px-4 pb-24 sm:px-6">
-          <motion.div {...reveal} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} className="mb-12 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">How it works</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.02em] sm:text-5xl">One prompt. Zero setup.</h2>
+        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
+          <motion.div {...reveal} transition={{ duration: 0.55, ease }} className="mb-12 max-w-2xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-400">How it works</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.025em] text-white sm:text-4xl">One prompt. Zero setup.</h2>
           </motion.div>
 
           <div className="relative grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="absolute left-0 right-0 top-7 hidden h-px bg-gradient-to-r from-transparent via-white/10 to-transparent lg:block" aria-hidden />
+            <div className="absolute left-0 right-0 top-7 hidden h-px bg-white/[0.06] lg:block" aria-hidden />
             {STEPS.map((s, i) => (
               <motion.div
                 key={s.n}
-                initial={{ opacity: 0, y: 24 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.55, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
-                className="relative rounded-3xl border border-white/[0.07] bg-white/[0.03] p-5 backdrop-blur-sm"
+                transition={{ duration: 0.5, delay: i * 0.08, ease }}
+                className="relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5"
               >
-                <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full border border-violet-500/30 bg-[#0d0d14] text-xs font-semibold text-violet-300">
+                <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.1] bg-[#0a0a0b] font-mono text-xs font-semibold text-violet-300">
                   {s.n}
                 </span>
-                <h3 className="mt-4 text-[15px] font-semibold tracking-tight text-white">{s.title}</h3>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-400">{s.body}</p>
+                <h3 className="mt-4 text-[14px] font-semibold tracking-tight text-white">{s.title}</h3>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-500">{s.body}</p>
               </motion.div>
             ))}
           </div>
         </section>
 
-        {/* ── GitHub free cloud backup band ─────────────────────────────── */}
-        <section className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
+        {/* ── security ─────────────────────────────────────────────────── */}
+        <section id="security" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
+          <motion.div {...reveal} transition={{ duration: 0.55, ease }} className="mb-12 max-w-2xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-400">Security</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.025em] text-white sm:text-4xl">
+              Built like it holds something that matters.
+            </h2>
+            <p className="mt-4 text-[15px] leading-relaxed text-zinc-400">
+              Because it does. ZaiMem shipped a full security audit (v1.7.2) — the findings were fixed, not filed.
+            </p>
+          </motion.div>
+
           <motion.div
             {...reveal}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="relative overflow-hidden rounded-[2rem] border border-emerald-500/25 bg-gradient-to-b from-emerald-500/12 via-white/[0.03] to-transparent px-6 py-12 text-center sm:px-10"
+            transition={{ duration: 0.6, delay: 0.08, ease }}
+            className="grid gap-px overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.06] sm:grid-cols-2 lg:grid-cols-5"
           >
-            <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[480px] -translate-x-1/2 rounded-full bg-emerald-500/15 blur-[100px]" aria-hidden />
-            <h2 className="relative text-2xl font-semibold tracking-[-0.02em] text-emerald-100 sm:text-3xl">
-              Free unlimited memory hosting — on YOUR GitHub.
-            </h2>
-            <p className="relative mx-auto mt-3 max-w-2xl text-[14px] leading-relaxed text-zinc-300">
-              Pair ZaiMem with a GitHub Personal Access Token and every session, memory, project & meeting auto-syncs
-              <span className="font-semibold text-white"> in real time</span> to a <span className="font-semibold text-emerald-300">private repo in your own GitHub account</span>.
-              Your memory stops eating local storage and survives anything. Private repos are <span className="font-semibold text-emerald-300">free on GitHub</span> — no card, no plan, 2-minute setup:
-            </p>
-            <div className="relative mx-auto mt-6 grid max-w-3xl gap-3 text-left sm:grid-cols-3">
-              {[
-                { n: "1", t: "Open the pre-filled token link", d: "Cloud DB tab → GitHub opens with the repo scope pre-set." },
-                { n: "2", t: "Generate & copy", d: "Click Generate, copy the token (ghp_…). Encrypted before storage." },
-                { n: "3", t: "Paste & pair", d: "ZaiMem creates your private repo and mirrors everything, forever." },
-              ].map((st) => (
-                <div key={st.n} className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/25 text-[10px] font-bold text-emerald-300">{st.n}</span>
-                  <p className="mt-2 text-[13px] font-medium text-zinc-200">{st.t}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">{st.d}</p>
+            {SECURITY.map((s) => (
+              <div key={s.t} className="bg-[#0a0a0b] p-5">
+                <s.icon className="h-4 w-4 text-zinc-400" aria-hidden />
+                <p className="mt-3 text-[13px] font-semibold text-zinc-200">{s.t}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-zinc-600">{s.d}</p>
+              </div>
+            ))}
+          </motion.div>
+        </section>
+
+        {/* ── GitHub free cloud backup band ─────────────────────────────── */}
+        <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+          <motion.div
+            {...reveal}
+            transition={{ duration: 0.55, ease }}
+            className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-12 sm:px-10"
+          >
+            <div className="grid items-center gap-10 lg:grid-cols-2">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.05]">
+                    <Github className="h-4.5 w-4.5 text-zinc-100" />
+                  </div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">GitHub Cloud DB</p>
                 </div>
-              ))}
+                <h2 className="mt-5 text-2xl font-semibold tracking-[-0.02em] text-white sm:text-3xl">
+                  Free unlimited memory hosting — on your GitHub.
+                </h2>
+                <p className="mt-4 text-[14px] leading-relaxed text-zinc-400">
+                  Pair a Personal Access Token and every session, memory, project and meeting auto-syncs
+                  in real time to a private repo in your own GitHub account. Private repos are free —
+                  no card, no plan, two-minute setup.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-zinc-500">
+                  <span className="flex items-center gap-1.5"><Lock className="h-3 w-3" /> only the paired token can read the repo</span>
+                  <span className="flex items-center gap-1.5"><RefreshCw className="h-3 w-3" /> real-time sync + daily backup</span>
+                  <span className="flex items-center gap-1.5"><Github className="h-3 w-3" /> revoke anytime on GitHub</span>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                {[
+                  { n: "1", t: "Open the pre-filled token link", d: "Cloud DB tab → GitHub opens with the repo scope pre-set." },
+                  { n: "2", t: "Generate & copy", d: "Click Generate, copy the token (ghp_…). Encrypted before storage." },
+                  { n: "3", t: "Paste & pair", d: "ZaiMem creates your private repo and mirrors everything." },
+                ].map((st) => (
+                  <div key={st.n} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.1] font-mono text-[10px] font-bold text-zinc-300">{st.n}</span>
+                    <p className="mt-2 text-[13px] font-medium text-zinc-200">{st.t}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-600">{st.d}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <p className="relative mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-zinc-500">
-              <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> only the paired token can read the repo</span>
-              <span className="flex items-center gap-1"><RefreshCw className="h-3 w-3" /> real-time auto-sync + daily scheduled backup</span>
-              <span className="flex items-center gap-1"><Github className="h-3 w-3" /> revoke anytime on GitHub</span>
-            </p>
           </motion.div>
         </section>
 
         {/* ── closing CTA ──────────────────────────────────────────────── */}
-        <section className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
+        <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
           <motion.div
             {...reveal}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-violet-600/15 via-white/[0.03] to-transparent px-6 py-16 text-center"
+            transition={{ duration: 0.55, ease }}
+            className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-16 text-center"
           >
-            <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[480px] -translate-x-1/2 rounded-full bg-violet-500/20 blur-[100px]" aria-hidden />
-            <h2 className="relative text-3xl font-semibold tracking-[-0.02em] sm:text-4xl">
+            <h2 className="text-3xl font-semibold tracking-[-0.025em] text-white sm:text-4xl">
               Give your agent a memory.
             </h2>
-            <p className="relative mx-auto mt-3 max-w-md text-[15px] text-zinc-400">
+            <p className="mx-auto mt-3 max-w-md text-[15px] text-zinc-400">
               One token, one prompt — every chat after that is enhanced.
             </p>
             <Button
               size="lg"
               onClick={createToken}
               disabled={creating}
-              className="relative mt-8 h-12 rounded-full bg-white px-8 text-[15px] font-semibold text-black shadow-xl shadow-black/40 transition-all hover:scale-[1.03] hover:bg-zinc-200 active:scale-95"
+              className="mt-8 h-11 rounded-lg bg-zinc-100 px-8 text-[14px] font-semibold text-zinc-900 transition-colors hover:bg-white active:bg-zinc-300"
             >
-              {creating ? <Loader2 className="mr-2 h-4.5 w-4.5 animate-spin" /> : <KeyRound className="mr-2 h-4.5 w-4.5" />}
+              {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
               {creating ? "Generating…" : "Get your private token"}
             </Button>
           </motion.div>
@@ -772,14 +869,38 @@ export function Landing({ onToken }: LandingProps) {
       </main>
 
       {/* footer */}
-      <footer className="relative z-10 border-t border-white/[0.06] bg-black/30 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-4 py-6 text-xs text-zinc-400 sm:flex-row sm:px-6">
-          <span>ZaiMem v1.7 — session memory & context enhancer for every MCP agent</span>
-          <span className="flex items-center gap-1.5">
-            Powered by <BrainCircuit className="h-3 w-3 text-violet-400" /> local vector engine · zcode-smart-skill port
-          </span>
+      <footer className="relative z-10 border-t border-white/[0.06]">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+          <div className="grid gap-10 sm:grid-cols-3">
+            {FOOTER_COLS.map((col) => (
+              <div key={col.h}>
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{col.h}</h3>
+                <ul className="mt-4 space-y-2.5">
+                  {col.links.map((l) => (
+                    <li key={l.label}>
+                      <a
+                        href={l.href}
+                        {...(l.external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
+                        className="text-[13px] text-zinc-400 transition-colors hover:text-zinc-100"
+                      >
+                        {l.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/[0.06] pt-6 text-xs text-zinc-600 sm:flex-row">
+            <span className="flex items-center gap-1.5">
+              <BrainCircuit className="h-3 w-3 text-zinc-500" aria-hidden />
+              ZaiMem v1.8 — session memory & context enhancer for every MCP agent
+            </span>
+            <span>MIT License · © 2026 Rommark.Dev</span>
+          </div>
         </div>
       </footer>
     </div>
   );
 }
+

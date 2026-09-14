@@ -2,6 +2,30 @@
 
 All notable changes to ZaiMem are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is semver.
 
+## [1.8.0] — Enterprise front page, onboarding, data export & hardening
+
+### Changed
+- **Landing page redesigned end-to-end — "enterprise instrument" school (Linear / Vercel / Stripe)**
+  - One neutral near-black surface with hairline borders replaces the purple-glow-gradient look; a single violet accent is used surgically, other color is strictly semantic (emerald = success, amber = compression, rose = threat).
+  - No gradient text, no ambient blur orbs, no rainbow cards; feature demos kept but restyled monochrome.
+  - New sections: live key-numbers band (33 tools · 4 resources · 8 packs · 156 checks), real `mcp.json` setup block, agent wordmark strip (chat.z.ai, Claude Code, Cursor, Cline, Windsurf, Trae, Antigravity, zcode, Koda, Pi, Grok), dedicated Security section surfaced from the v1.7.2 audit, and a three-column enterprise footer.
+
+### Added
+- **Getting-started checklist** (dashboard): 4 steps with progress auto-detected from real signals (account created, first session, first memory, GitHub pairing); "Go" buttons jump to the right tab; dismissible; hides itself when complete.
+- **Full-account JSON export**: `GET /api/export` streams one portable archive — memories, sessions, ledger pages, skills, tool-pack prefs and project teams with files & agents. No embedding vectors, no credentials; `Content-Disposition` download + one-click button in the Cloud DB tab.
+
+### Hardened
+- **Content-Security-Policy** on every response (self-locked, frame-ancestors none, object-src none) + **HSTS** — continues the v1.7.2 audit roadmap.
+- **Strict type-checked builds**: `ignoreBuildErrors` removed — `next build` now fails on any TypeScript error (src/ verified clean via `tsc --noEmit`; sandbox-only folders excluded in tsconfig).
+
+### Fixed
+- **Restored two v1.7 API routes that were missing from the repository**: `GET /api/sessions/[id]/prompt` (bootstrap prompt for any session) and `GET /api/projects/[id]/prompt` (paste-ready project-team invite). e2e now guards both.
+- e2e headroom stat check made deterministic (long `recent_history` guarantees compression frees tokens).
+- Re-seeded `ZAIMEM_SECRET` documentation note: deployments must provide it or PAT encryption falls back to the legacy public key (server warns at startup).
+
+### Verified
+- e2e **156 checks, all green** (two consecutive runs); type-check clean; lint clean; browser-verified desktop + 390 px mobile (no horizontal scroll, zero console/page errors).
+
 ## [1.7.2] — Full security & cybersecurity audit, hardening
 
 ### Security — critical fixes

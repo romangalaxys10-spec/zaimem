@@ -696,7 +696,12 @@ async function main() {
   check("headroom toggles ON", (hrOn.result?.content?.[0]?.text ?? "").includes("ON"), hrOn.result);
   const hrEnh = await rpc("tools/call", {
     name: "zaimem_enhance_context",
-    arguments: { current_message: `payment gateway api key handling ${mkS}` },
+    arguments: {
+      current_message: `payment gateway api key handling ${mkS}`,
+      // >1200 chars: base digest cap keeps it whole, headroom cap (600) must
+      // compress → guarantees freed > 0 → UsageStat action="headroom" is banked
+      recent_history: Array.from({ length: 20 }, (_, i) => `turn ${i + 1}: the payment gateway team discussed api key rotation, retry budgets and idempotency keys for checkout; decision recorded to use the vault-backed provider and revisit the cache TTL next sprint.`).join(" "),
+    },
   }, token, 110, mcpSession);
   const hrEnhText: string = hrEnh.result?.content?.[0]?.text ?? "";
   check("enhance_context applies headroom compression", hrEnhText.includes("HEADROOM compression ON"), hrEnhText.slice(0, 200));
@@ -835,6 +840,32 @@ async function main() {
       check(`${name} — SKIPPED (set ZAIMEM_E2E_PAT / ZAIMEM_E2E_REPO to run the live rescue-import test)`, true, "skip");
     }
   }
+
+  // ── 16. Full-account export (v1.8) ─────────────────────────────
+  console.log("\n── 16. Full-account export ─────────────────");
+  const expRes = await fetch(`${BASE}/api/export`, { headers: h });
+  check("export returns 200 JSON", expRes.ok && (expRes.headers.get("content-type") ?? "").includes("application/json"));
+  const exp = await expRes.json();
+  check(
+    "export payload is a full account archive",
+    exp.format === "zaimem-account" && typeof exp.exportedAt === "string" && exp.counts && Array.isArray(exp.memories) && Array.isArray(exp.sessions) && Array.isArray(exp.projects) && Array.isArray(exp.skills) && Array.isArray(exp.ledgerPages) && Array.isArray(exp.toolPacks),
+    exp.counts,
+  );
+  check(
+    "export counts match payload arrays",
+    exp.counts.memories === exp.memories.length && exp.counts.sessions === exp.sessions.length && exp.counts.projects === exp.projects.length,
+    exp.counts,
+  );
+  check(
+    "export carries no embedding vectors or credentials",
+    !("embedding" in (exp.memories[0] ?? {})) && !("tokenHash" in exp) && !JSON.stringify(exp).includes(token),
+  );
+  const expNoAuth = await fetch(`${BASE}/api/export`);
+  check("export without token → 401", expNoAuth.status === 401);
+  check(
+    "export suggests attachment download",
+    (expRes.headers.get("content-disposition") ?? "").includes("attachment"),
+  );
 
   console.log(`\n${failures === 0 ? "🎉 ALL CHECKS PASSED" : `❌ ${failures} CHECK(S) FAILED`}`);
   process.exit(failures === 0 ? 0 : 1);

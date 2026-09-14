@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Github, CloudUpload, Link2, Loader2, ExternalLink, ShieldCheck,
-  CheckCircle2, XCircle, RefreshCw, Unlink, KeyRound, History, Lock, CalendarClock, LifeBuoy,
+  CheckCircle2, XCircle, RefreshCw, Unlink, KeyRound, History, Lock, CalendarClock, LifeBuoy, FileDown,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { fmtDate } from "./panels";
@@ -417,6 +417,7 @@ function RestoreCard({ token, onImported }: { token: string; onImported: () => v
 
 export function CloudDbPanel({ token, refreshToken }: { token: string; refreshToken: () => void }) {
   const [status, setStatus] = useState<GhStatus | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(() => {
     call<GhStatus>(token)
@@ -445,6 +446,46 @@ export function CloudDbPanel({ token, refreshToken }: { token: string; refreshTo
       )}
 
       <RestoreCard token={token} onImported={load} />
+
+      <Card className="border-white/5 bg-white/[0.03]">
+        <CardContent className="p-5">
+          <h3 className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-zinc-100">
+            <FileDown className="h-4 w-4 text-zinc-400" /> Export your data
+          </h3>
+          <p className="mb-3 text-xs leading-relaxed text-zinc-400">
+            One-click full-account archive: memories, sessions, ledger pages, skills, tool packs and project teams
+            (with files &amp; agents) as a single portable JSON file. No vectors, no credentials — just your data.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const res = await fetch("/api/export", { headers: { Authorization: `Bearer ${token}` } });
+                if (!res.ok) throw new Error(String(res.status));
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `zaimem-account-${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast({ title: "Export ready", description: "Full account JSON downloaded." });
+              } catch {
+                toast({ title: "Export failed", description: "Please retry in a moment.", variant: "destructive" });
+              } finally {
+                setExporting(false);
+              }
+            }}
+            className="rounded-md border-white/10 bg-white/[0.04] text-xs text-zinc-200 hover:bg-white/[0.08] hover:text-white"
+          >
+            {exporting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileDown className="mr-1.5 h-3.5 w-3.5" />}
+            {exporting ? "Preparing…" : "Download account JSON"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card className="border-white/5 bg-white/[0.03]">
         <CardContent className="p-5">
