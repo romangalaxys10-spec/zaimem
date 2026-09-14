@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate, extractToken, unauthorized } from "@/lib/zaimem/auth";
 import { db } from "@/lib/db";
-import { recallMemories } from "@/lib/zaimem/memory";
+import { recallMemories, decayCandidates } from "@/lib/zaimem/memory";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +16,16 @@ export async function GET(req: NextRequest) {
 
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
   const limit = Number(req.nextUrl.searchParams.get("limit") ?? "40");
+  const view = req.nextUrl.searchParams.get("view") ?? "";
+
+  // decay candidates — memories that no longer earn their place
+  if (view === "decay") {
+    const candidates = await decayCandidates(user.id);
+    return NextResponse.json({ memories: candidates, mode: "decay" });
+  }
 
   if (q) {
-    const hits = await recallMemories({ userId: user.id, query: q, limit: Math.min(40, limit) });
+    const hits = await recallMemories({ userId: user.id, query: q, limit: Math.min(40, limit), project: req.nextUrl.searchParams.get("project") || null });
     return NextResponse.json({
       memories: hits.map((h) => ({
         id: h.id,
@@ -28,6 +35,7 @@ export async function GET(req: NextRequest) {
         sessionId: h.sessionId,
         source: h.source,
         pinned: h.pinned,
+        details: h.details,
         accessCount: h.accessCount,
         createdAt: h.createdAt,
       })),
@@ -42,7 +50,8 @@ export async function GET(req: NextRequest) {
       take: Math.min(100, limit),
       select: {
         id: true, kind: true, content: true, keywords: true, importance: true,
-        accessCount: true, sessionId: true, source: true, pinned: true, createdAt: true, updatedAt: true,
+        accessCount: true, sessionId: true, source: true, pinned: true, project: true,
+        quarantined: true, archived: true, supersededBy: true, createdAt: true, updatedAt: true,
       },
     }),
     db.memory.findMany({
@@ -51,7 +60,8 @@ export async function GET(req: NextRequest) {
       take: 10,
       select: {
         id: true, kind: true, content: true, keywords: true, importance: true,
-        accessCount: true, sessionId: true, source: true, pinned: true, createdAt: true, updatedAt: true,
+        accessCount: true, sessionId: true, source: true, pinned: true, project: true,
+        quarantined: true, archived: true, supersededBy: true, createdAt: true, updatedAt: true,
       },
     }),
   ]);

@@ -449,3 +449,72 @@ export function queueSync(userId: string): void {
     } catch { /* status + error already recorded inside syncUser */ }
   }, 4000));
 }
+
+// ─── point-in-time restore (from snapshot history) ───────────────────────────
+
+export interface SnapshotCommit {
+  sha: string;
+  date: string;
+  message: string;
+}
+
+/** List recent snapshot commits (commits that touched memories.json). */
+export async function listSnapshotHistory(userId: string, take = 10): Promise<SnapshotCommit[]> {
+  const link = await db.githubLink.findUnique({ where: { userId } });
+  if (!link) throw new GhError(400, "GitHub is not paired for this account.");
+  const pat = decryptSecret(link.patEnc);
+  const { data } = await ghJson<{ commit: { message: string; author?: { date?: string } }; sha: string }[]>(
+    pat,
+    `/repos/${link.repoFull}/commits?path=memories.json&per_page=${Math.min(30, take)}&sha=${encodeURIComponent(link.branch)}`,
+  );
+  return (data ?? []).map((c) => ({
+    sha: c.sha,
+    date: c.commit?.author?.date ?? new Date(0).toISOString(),
+    message: (c.commit?.message ?? "").split("\n")[0].slice(0, 120),
+  }));
+}
+
+export interface RestoreResult {
+  sha: string;
+  imported: number;
+  deduped: number;
+  skipped: number;
+}
+
+/**
+ * Restore memories from a snapshot commit. Reads memories.json at that ref and
+ * re-imports every entry through rememberMemory — auto-dedupe makes re-adding
+ * current data a no-op, so restore is safely additive (nothing is deleted).
+ */
+export async function restoreFromSnapshot(userId: string, sha: string): Promise<RestoreResult> {
+  const link = await db.githubLink.findUnique({ where: { userId } });
+  if (!link) throw new GhError(400, "GitHub is not paired for this account.");
+  const pat = decryptSecret(link.patEnc);
+  const { data } = await ghJson<{ content: string; encoding: string }>(
+    pat,
+    `/repos/${link.repoFull}/contents/memories.json?ref=${encodeURIComponent(sha)}`,
+  );
+  if (!data || data.encoding !== "base64") throw new GhError(422, "Could not read memories.json at that ref.");
+  let entries: unknown;
+  try {
+    entries = JSON.parse(Buffer.from(data.content, "base64").toString("utf-8"));
+  } catch {
+    throw new GhError(422, "memories.json at that ref is not valid JSON.");
+  }
+  if (!Array.isArray(entries)) throw new GhError(422, "Unexpected memories.json format.");
+
+  const { rememberMemory } = await import("./memory");
+  let imported = 0, deduped = 0, skipped = 0;
+  for (const e of entries.slice(0, 2000)) {
+    const content = typeof (e as { content?: unknown })?.content === "string" ? (e as { content: string }).content.trim() : "";
+    if (!content) { skipped++; continue; }
+    try {
+      const r = await rememberMemory({ userId, content, kind: (e as { kind?: string }).kind });
+      if (r.created) imported++; else deduped++;
+    } catch { skipped++; }
+  }
+  await db.syncLog.create({
+    data: { userId, action: "restore", status: "ok", files: imported, detail: `restored from ${sha.slice(0, 8)}: ${imported} imported, ${deduped} deduped, ${skipped} skipped` },
+  }).catch(() => {});
+  return { sha, imported, deduped, skipped };
+}

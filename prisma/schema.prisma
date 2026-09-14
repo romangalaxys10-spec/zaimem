@@ -22,6 +22,7 @@ model User {
   usageStats  UsageStat[]
   github      GithubLink?
   syncLogs    SyncLog[]
+  answerCaches AnswerCache[]
 }
 
 model Session {
@@ -31,6 +32,7 @@ model Session {
   externalId  String? // chat.z.ai session id when provided by the agent
   title       String       @default("Untitled session")
   topic       String?
+  project     String? // project namespace — scoped recall/enhance when set
   status      String       @default("active") // active | summarized | archived
   summary     String? // distilled end-of-session digest
   metadata    String? // JSON blob (client info, tags…)
@@ -59,12 +61,33 @@ model Memory {
   accessCount Int      @default(0)
   source      String? // source filename for document chunks (file ingestion)
   docHash     String? // sha256[:16] of normalized doc text — idempotent re-ingest
+  project     String? // project namespace — scoped recall/enhance when set
+  supersededBy String? // id of the memory that replaced this one (conflict chain)
+  quarantined Boolean  @default(false) // injection guard — never auto-injected into enhance_context
+  archived    Boolean  @default(false) // decayed memory — excluded from recall, kept for audit
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId, kind])
   @@index([userId, source])
+  @@index([userId, project])
   @@index([sessionId])
+}
+
+// enhance_context decision cache — reuses the last memory-id selection for a
+// semantically identical message within its TTL (skips the cosine scan)
+model AnswerCache {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  queryKey  String // sha1 of normalized query text
+  memoryIds String // JSON string[] — memory ids chosen last time
+  hits      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, queryKey])
+  @@index([userId, updatedAt])
 }
 
 // Smart-skill integration: SKILL.md registry (builtin + user skills)

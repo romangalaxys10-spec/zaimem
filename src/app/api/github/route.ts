@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate, extractToken, unauthorized } from "@/lib/zaimem/auth";
 import { db } from "@/lib/db";
-import { pairUser, unpairUser, syncUser, GhError } from "@/lib/zaimem/github";
+import { pairUser, unpairUser, syncUser, GhError, listSnapshotHistory } from "@/lib/zaimem/github";
 
 export const dynamic = "force-dynamic";
 
@@ -53,12 +53,28 @@ export async function GET(req: NextRequest) {
   });
 }
 
+/** GET /api/github?history=1 — snapshot commit history for point-in-time restore. */
+export async function GET(req: NextRequest) {
+  const user = await authenticate(extractToken(req));
+  if (!user) return unauthorized();
+  if (req.nextUrl.searchParams.get("history")) {
+    try {
+      const history = await listSnapshotHistory(user.id);
+      return NextResponse.json({ ok: true, history });
+    } catch (e) {
+      return fail(e);
+    }
+  }
+  return NextResponse.json({ error: "bad_request", message: "Nothing to GET — use ?history=1 or POST actions." }, { status: 400 });
+}
+
 /**
  * POST /api/github  { action: "pair", pat, repoName? }
  *                or { action: "unpair" }
  *                or { action: "sync" }
  *                or { action: "toggle", autoSync }
  *                or { action: "toggle_schedule", scheduleEnabled }
+ *                or { action: "restore", sha }
  */
 export async function POST(req: NextRequest) {
   const user = await authenticate(extractToken(req));
@@ -107,8 +123,16 @@ export async function POST(req: NextRequest) {
         });
         return NextResponse.json({ ok: true, scheduleEnabled: link.scheduleEnabled });
       }
+      case "restore": {
+        const sha = String(body.sha ?? "").trim();
+        if (!/^[a-f0-9]{7,40}$/i.test(sha)) {
+          return NextResponse.json({ error: "bad_request", message: "Provide a snapshot commit sha." }, { status: 400 });
+        }
+        const result = await restoreFromSnapshot(user.id, sha);
+        return NextResponse.json({ ok: true, restore: result });
+      }
       default:
-        return NextResponse.json({ error: "bad_request", message: "Unknown action. Use pair | unpair | sync | toggle | toggle_schedule." }, { status: 400 });
+        return NextResponse.json({ error: "bad_request", message: "Unknown action. Use pair | unpair | sync | toggle | toggle_schedule | restore." }, { status: 400 });
     }
   } catch (e) {
     return fail(e);

@@ -26,6 +26,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     data.keywords = extractKeywords(content).join(",");
   }
   if (typeof body.pinned === "boolean") data.pinned = body.pinned;
+  if (typeof body.archived === "boolean") data.archived = body.archived;
+  if (typeof body.quarantined === "boolean") data.quarantined = body.quarantined;
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "nothing to update — send content and/or pinned" }, { status: 400 });

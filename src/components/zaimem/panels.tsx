@@ -14,7 +14,8 @@ import {
 import {
   MessageSquare, Database, Gauge, Zap, Search, Trash2, Loader2,
   FileText, Layers, Clock, TrendingUp, Activity, Download, Upload,
-  FileUp, CheckCircle2, Pin, PinOff, Pencil, Check, X,
+  FileUp, CheckCircle2, Pin, PinOff, Pencil, Check, X, Archive,
+  ShieldAlert, GitBranch, History,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -50,9 +51,15 @@ export interface MemoryItem {
   sessionId: string | null;
   source?: string | null;
   pinned?: boolean;
+  project?: string | null;
+  quarantined?: boolean;
+  archived?: boolean;
+  supersededBy?: string | null;
+  details?: { sim: number; recency: number; keyword: number; importance: number; pin: number; bm25: number };
+  score?: number;
+  ageDays?: number;
   createdAt: string;
   updatedAt?: string;
-  score?: number;
 }
 
 export interface SkillItem {
@@ -72,6 +79,7 @@ export interface StatsData {
   byAction: { action: string; events: number; tokensSaved: number }[];
   dailySaved: { day: string; saved: number; events: number }[];
   topMemories: { id: string; kind: string; content: string; accessCount: number; pinned: boolean }[];
+  topSessions: { id: string; title: string; project: string | null; turns: number; tokensSaved: number }[];
   recent: { id: string; action: string; tokensSaved: number; detail: string | null; createdAt: string }[];
 }
 
@@ -265,6 +273,8 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
   const [ingesting, setIngesting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [editing, setEditing] = useState<{ id: string; content: string } | null>(null);
+  const [decayMode, setDecayMode] = useState(false);
+  const [projectFilter, setProjectFilter] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
 
@@ -277,14 +287,35 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
       setMemories([]);
     }
   };
+
+  const loadDecay = async () => {
+    try {
+      const data = await api<{ memories: MemoryItem[]; mode: string }>("/api/memories?view=decay", token);
+      setMemories(data.memories);
+      setMode("decay");
+    } catch {
+      setMemories([]);
+    }
+  };
+
+  async function toggleDecay() {
+    if (decayMode) {
+      setDecayMode(false);
+      await loadRecent();
+    } else {
+      setDecayMode(true);
+      await loadDecay();
+    }
+  }
   useEffect(() => { loadRecent(); }, []);
 
   async function search() {
     if (!query.trim()) return loadRecent();
     setSearching(true);
     try {
+      const pj = projectFilter ? `&project=${encodeURIComponent(projectFilter)}` : "";
       const data = await api<{ memories: MemoryItem[]; mode: string }>(
-        `/api/memories?q=${encodeURIComponent(query.trim())}&limit=25`, token,
+        `/api/memories?q=${encodeURIComponent(query.trim())}&limit=25${pj}`, token,
       );
       setMemories(data.memories);
       setMode(data.mode);
@@ -292,6 +323,17 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
       toast({ title: "Search failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
     } finally {
       setSearching(false);
+    }
+  }
+
+  async function archiveMemory(id: string) {
+    try {
+      await api(`/api/memories/${id}`, token, { method: "PATCH", body: JSON.stringify({ archived: true }) });
+      setMemories((m) => m?.filter((x) => x.id !== id) ?? null);
+      toast({ title: "Memory archived", description: "Excluded from recall — still visible in the cloud DB for audit." });
+      refreshToken();
+    } catch (e) {
+      toast({ title: "Archive failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
     }
   }
 
@@ -361,9 +403,29 @@ export function MemoryPanel({ token, refreshToken }: { token: string; refreshTok
   async function importMemories(file: File) {
     setImporting(true);
     try {
-      const parsed = JSON.parse(await file.text());
-      const items = Array.isArray(parsed) ? parsed : parsed?.memories;
-      if (!Array.isArray(items) || items.length === 0) throw new Error("No memories found — expected a ZaiMem export file");
+      const raw = await file.text();
+      let parsed: unknown;
+      try { parsed = JSON.parse(raw); } catch { parsed = null; }
+      // memory transplant: ChatGPT / Claude exports → ingest as searchable transcripts
+      const isExport = parsed !== null && (
+        (Array.isArray(parsed) && (parsed as Record<string, unknown>[]).some((c) => c?.mapping || c?.chat_messages)) ||
+        (() => { const o = parsed as Record<string, unknown>; return Array.isArray(o?.conversations) || Array.isArray(o?.chats); })()
+      );
+      if (isExport) {
+        const res = await api<{ format: string; conversations: number; messages: number; chunks: number; tokensEst: number }>(
+          "/api/import/chat-export", token,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: file.name, text: raw }) },
+        );
+        toast({
+          title: `Transplanted ${res.format} export`,
+          description: `${res.conversations} conversation(s) · ${res.messages} messages → ${res.chunks} searchable chunk(s).`,
+        });
+        await loadRecent();
+        refreshToken();
+        return;
+      }
+      const items = Array.isArray(parsed) ? parsed : (parsed as { memories?: unknown[] })?.memories;
+      if (!Array.isArray(items) || items.length === 0) throw new Error("No memories found — expected a ZaiMem export file or a ChatGPT/Claude export");
       const res = await api<{ total: number; imported: number; merged: number; deduped: number; skipped: number }>(
         "/api/memories/import", token,
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memories: items }) },

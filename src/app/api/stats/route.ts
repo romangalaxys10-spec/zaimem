@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const user = await authenticate(extractToken(req));
   if (!user) return unauthorized();
 
-  const [byAction, totals, recent, daysRaw, topMemories, memoryCounts] = await Promise.all([
+  const [byAction, totals, recent, daysRaw, topMemories, memoryCounts, topSessions] = await Promise.all([
     db.usageStat.groupBy({
       by: ["action"],
       where: { userId: user.id },
@@ -37,6 +37,12 @@ export async function GET(req: NextRequest) {
       db.memory.count({ where: { userId: user.id, pinned: true } }),
       db.memory.count({ where: { userId: user.id, kind: "document" } }),
     ]),
+    db.session.findMany({
+      where: { userId: user.id, tokensSaved: { gt: 0 } },
+      orderBy: { tokensSaved: "desc" },
+      take: 5,
+      select: { id: true, title: true, project: true, turns: true, tokensSaved: true },
+    }),
   ]);
 
   // daily series for the last 14 days (tokens saved + event count)
@@ -69,6 +75,7 @@ export async function GET(req: NextRequest) {
     })),
     dailySaved: days,
     topMemories,
+    topSessions,
     recent: recent.map((r) => ({
       id: r.id,
       action: r.action,
