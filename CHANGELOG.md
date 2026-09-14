@@ -2,6 +2,23 @@
 
 All notable changes to ZaiMem are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is semver.
 
+## [1.8.2] — Vercel hosting + GitHub auto-sync deploy pipeline
+
+### Added
+- **Vercel deployment pipeline**: `Vercel deploy` GitHub Actions workflow — on every push to `main` (and manual dispatch) it pulls the Vercel environment, builds with Bun + the project's `vercel-build` script, and ships a prebuilt production deployment. Repo secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`) are stored encrypted via the Actions secrets API.
+- **Dual-provider Prisma support**: `prisma/schema.postgres.prisma` (PostgreSQL variant of the SQLite schema) plus a conditional `vercel-build` script — when `DATABASE_URL` is a `postgres://` URL the Vercel build generates the Postgres client and runs `prisma db push` against it; otherwise it builds with the default SQLite schema. The codebase uses zero raw SQL, so the provider switch is fully portable.
+- **Deployment docs**: new README "Deployment" section covering Vercel auto-sync, the database story, and the self-hosted/Docker reference mode.
+
+### Hardened
+- **Ephemeral-storage guard**: when running on Vercel with a `file:` SQLite URL, the server logs a loud warning on boot that all data is lost on cold start — no one can mistake a warm lambda instance for persistence.
+
+### Notes
+- Vercel functions expose an ephemeral filesystem, so the default `DATABASE_URL=file:/tmp/zaimem.db` persists only per instance. For production-grade persistence, point `DATABASE_URL` at any managed Postgres — the pipeline wires the schema automatically. In-memory rate-limit buckets and the MCP session registry are per-instance on serverless; MCP clients re-initialize transparently.
+- Vercel's Storage provisioning API is not exposed to this token scope, so the database itself is a one-click add in the Vercel dashboard (Storage → Create Database → connect to `zaimem`).
+
+### Verified
+- tsc clean; e2e 156/156 green; first auto-deploy observed end-to-end from push → Actions → Vercel production (see README Deployment section).
+
 ## [1.8.1] — Embeddable dashboard (preview & IDE-panel fix)
 
 ### Fixed

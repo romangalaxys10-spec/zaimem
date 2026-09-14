@@ -227,6 +227,14 @@ All 33 MCP tools belong to one of 8 packs. Flip a pack off in **Skills → MCP t
 | Smart skills & ledger | detect_skill · list_skills · get_skill · ledger_write · ledger_read |
 | Token saver & headroom | save_tokens · headroom |
 
+## Deployment
+
+**Vercel (auto-sync):** every push to `main` deploys automatically via the `Vercel deploy` GitHub Actions workflow (prebuilt deploy with `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` repo secrets). Project: [zaimem.vercel.app](https://zaimem.vercel.app).
+
+**Database on Vercel:** Vercel functions have an ephemeral filesystem, so the default `DATABASE_URL=file:/tmp/zaimem.db` only persists while a lambda instance is warm (the server logs a loud warning on every boot). For real persistence, set `DATABASE_URL` to any managed Postgres (Vercel Postgres / Neon / Supabase / RDS) in the Vercel project settings — the build detects a `postgres://` URL and automatically generates + syncs `prisma/schema.postgres.prisma`. Zero raw SQL is used anywhere, so the provider switch is loss-free. In-memory state (rate-limit buckets, MCP session registry) is per-instance on serverless; MCP clients transparently re-initialize.
+
+**Self-hosted / Docker:** the long-running mode stays the reference deployment — `docker-compose.yml` (or `bun run build && bun start`) keeps SQLite on a real disk, runs the GitHub backup scheduler in-process, and shares one rate-limit/session registry. GHCR semver images are built by CI on every release tag.
+
 ## Architecture
 
 ```

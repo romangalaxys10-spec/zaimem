@@ -1,6 +1,6 @@
 {
   "name": "zaimem",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
@@ -10,7 +10,8 @@
     "db:push": "prisma db push --accept-data-loss",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "vercel-build": "bash scripts/vercel-build.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
