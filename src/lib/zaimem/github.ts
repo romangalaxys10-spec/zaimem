@@ -20,7 +20,21 @@
  */
 
 import { db } from "@/lib/db";
-import { decryptSecret, encryptSecret, secretHint, computeBlobSha } from "./crypto";
+import { decryptSecretUpgradable, encryptSecret, secretHint, computeBlobSha } from "./crypto";
+
+/**
+ * Load a stored PAT, transparently re-encrypting payloads written under the
+ * legacy public key (pre-1.7.2) with the current ZAIMEM_SECRET-derived key.
+ */
+async function loadPat(link: { userId: string; patEnc: string }): Promise<string> {
+  const { plain, upgraded } = decryptSecretUpgradable(link.patEnc);
+  if (upgraded) {
+    await db.githubLink
+      .update({ where: { userId: link.userId }, data: { patEnc: encryptSecret(plain) } })
+      .catch(() => {});
+  }
+  return plain;
+}
 
 // ─── low-level GitHub client ─────────────────────────────────────────────────
 
@@ -327,7 +341,7 @@ export async function syncUser(
 ): Promise<SyncResult> {
   const link = await db.githubLink.findUnique({ where: { userId } });
   if (!link) throw new GhError(400, "GitHub is not paired for this account.");
-  const pat = decryptSecret(link.patEnc);
+  const pat = await loadPat(link);
 
   await db.githubLink.update({ where: { userId }, data: { status: "syncing" } });
   try {
@@ -462,7 +476,7 @@ export interface SnapshotCommit {
 export async function listSnapshotHistory(userId: string, take = 10): Promise<SnapshotCommit[]> {
   const link = await db.githubLink.findUnique({ where: { userId } });
   if (!link) throw new GhError(400, "GitHub is not paired for this account.");
-  const pat = decryptSecret(link.patEnc);
+  const pat = await loadPat(link);
   const { data } = await ghJson<{ commit: { message: string; author?: { date?: string } }; sha: string }[]>(
     pat,
     `/repos/${link.repoFull}/commits?path=memories.json&per_page=${Math.min(30, take)}&sha=${encodeURIComponent(link.branch)}`,
@@ -489,7 +503,7 @@ export interface RestoreResult {
 export async function restoreFromSnapshot(userId: string, sha: string): Promise<RestoreResult> {
   const link = await db.githubLink.findUnique({ where: { userId } });
   if (!link) throw new GhError(400, "GitHub is not paired for this account.");
-  const pat = decryptSecret(link.patEnc);
+  const pat = await loadPat(link);
   const { data } = await ghJson<{ content: string; encoding: string }>(
     pat,
     `/repos/${link.repoFull}/contents/memories.json?ref=${encodeURIComponent(sha)}`,

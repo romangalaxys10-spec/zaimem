@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { findUserByToken } from "@/lib/zaimem/auth";
 import { seedBuiltinSkills } from "@/lib/zaimem/seed";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
   const token = body.token?.trim();
   if (!token) return NextResponse.json({ error: "token_required" }, { status: 400 });
 
-  const user = await db.user.findUnique({ where: { token } });
+  const user = await findUserByToken(token);
   if (!user) {
     return NextResponse.json(
       { error: "invalid_token", message: "This token does not exist. Generate a new one on the landing page." },

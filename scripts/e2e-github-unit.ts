@@ -49,7 +49,7 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
   const json = (status: number, data: unknown, headers?: Record<string, string>) =>
     new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", ...headers } });
 
-  if (pat !== "ghp_mocktoken1234567890abcdefghij") {
+  if (pat !== "ghp_zaimem_e2e_local_only_0000000000") {
     return json(401, { message: "Bad credentials" });
   }
   const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
@@ -132,25 +132,25 @@ async function main() {
   check("user + session + 2 memories + ledger + skill + stat seeded", true);
 
   console.log("\n── 3. PAT validation ─────────────────────────");
-  const v = await validatePat("ghp_mocktoken1234567890abcdefghij");
+  const v = await validatePat("ghp_zaimem_e2e_local_only_0000000000");
   check("valid PAT → login octocat", v.login === "octocat", v);
   mockState.badPat = true;
   let rejected = false;
-  try { await validatePat("ghp_mocktoken1234567890abcdefghij"); } catch (e) { rejected = e instanceof GhError && e.status === 401; }
+  try { await validatePat("ghp_zaimem_e2e_local_only_0000000000"); } catch (e) { rejected = e instanceof GhError && e.status === 401; }
   check("bad credentials → GhError 401", rejected);
   mockState.badPat = false;
 
   console.log("\n── 4. Repo provisioning ──────────────────────");
-  const repo = await ensurePrivateRepo("ghp_mocktoken1234567890abcdefghij", "octocat", "zaimem-cloud-db");
+  const repo = await ensurePrivateRepo("ghp_zaimem_e2e_local_only_0000000000", "octocat", "zaimem-cloud-db");
   check("private repo created", repo.created === true && repo.fullName === "octocat/zaimem-cloud-db", repo);
   check("repo marked private in mock", mockState.repos.get(repo.fullName)?.private === true);
   let reused = false;
-  const repo2 = await ensurePrivateRepo("ghp_mocktoken1234567890abcdefghij", "octocat", "zaimem-cloud-db");
+  const repo2 = await ensurePrivateRepo("ghp_zaimem_e2e_local_only_0000000000", "octocat", "zaimem-cloud-db");
   reused = repo2.created === false;
   check("existing managed repo reused (not recreated)", reused, repo2);
 
   console.log("\n── 5. Pair + first sync ──────────────────────");
-  const pairRes = await pairUser(user.id, "ghp_mocktoken1234567890abcdefghij", "zaimem-cloud-db");
+  const pairRes = await pairUser(user.id, "ghp_zaimem_e2e_local_only_0000000000", "zaimem-cloud-db");
   check("pair sync pushed all files", pairRes.result.pushed === pairRes.result.totalFiles, pairRes.result);
   check("snapshot has 8 files (7 fixed + 1 session)", pairRes.result.totalFiles === 8, pairRes.result.totalFiles);
   const files = mockState.repos.get("octocat/zaimem-cloud-db")!.files;

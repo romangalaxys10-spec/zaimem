@@ -1,11 +1,19 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 
 export const TOKEN_PREFIX = "zm_";
 
 export function generateToken(): string {
   return TOKEN_PREFIX + randomBytes(24).toString("hex"); // zm_<48 hex>
+}
+
+/**
+ * Security (v1.7.2 audit): API tokens are stored hashed (SHA-256) at rest.
+ * The plaintext is shown once at issuance and never persisted.
+ */
+export function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export function maskToken(token: string): string {
@@ -24,17 +32,36 @@ export function extractToken(req: NextRequest): string | null {
   return null;
 }
 
+type UserRow = NonNullable<Awaited<ReturnType<typeof db.user.findUnique>>>;
+
+/**
+ * Single credential lookup path: by tokenHash first; legacy plaintext rows
+ * (pre-1.7.2) are migrated on the fly — tokenHash backfilled, plaintext blanked.
+ */
+export async function findUserByToken(token: string | null | undefined): Promise<UserRow | null> {
+  if (!token) return null;
+  const h = hashToken(token);
+  const byHash = await db.user.findUnique({ where: { tokenHash: h } });
+  if (byHash) {
+    db.user.update({ where: { id: byHash.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
+    return byHash;
+  }
+  const legacy = await db.user.findUnique({ where: { token } });
+  if (legacy) {
+    const migrated = await db.user
+      .update({ where: { id: legacy.id }, data: { tokenHash: h, token: null } })
+      .catch(() => null);
+    if (migrated) {
+      db.user.update({ where: { id: migrated.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
+      return migrated;
+    }
+  }
+  return null;
+}
+
 /** Look up a ZaiMem user by raw token. Updates lastSeenAt. */
 export async function authenticate(token: string | null | undefined) {
-  if (!token) return null;
-  const user = await db.user.findUnique({ where: { token } });
-  if (user) {
-    // fire-and-forget heartbeat
-    db.user
-      .update({ where: { id: user.id }, data: { lastSeenAt: new Date() } })
-      .catch(() => {});
-  }
-  return user;
+  return findUserByToken(token);
 }
 
 /** Standard 401 response for invalid/missing tokens. */

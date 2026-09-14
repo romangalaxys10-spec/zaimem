@@ -11,7 +11,8 @@ datasource db {
 
 model User {
   id          String        @id @default(cuid())
-  token       String        @unique // zm_<64hex> private access token
+  token       String?       @unique // LEGACY plaintext (pre-1.7.2 rows; blanked on first use after migration)
+  tokenHash   String?       @unique // sha256(token) — the only credential lookup since v1.7.2
   label       String? // optional display label
   headroom    Boolean       @default(false) // Headroom mode — compress context injections harder (headroomlabs-ai/headroom pattern)
   createdAt   DateTime      @default(now())

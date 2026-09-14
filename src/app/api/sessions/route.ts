@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       origin: "user",
     },
   });
-  const prompt = await buildSessionPrompt({ baseUrl: baseUrlFromHeaders(req), token: user.token }, user.id, session.id);
+  const prompt = await buildSessionPrompt({ baseUrl: baseUrlFromHeaders(req), token: extractToken(req) ?? "" }, user.id, session.id);
   queueSync(user.id);
   return NextResponse.json({ session, prompt }, { status: 201 });
 }

@@ -61,6 +61,7 @@ import {
 } from "./skills";
 import { seedBuiltinSkills } from "./seed";
 import { packForTool, TOOL_PACKS } from "./tool-packs";
+import { rateLimit } from "./ratelimit";
 import { queueSync } from "./github";
 import { findGlobalLedgerPage, upsertGlobalLedgerPage } from "./mcp-helpers";
 
@@ -1635,6 +1636,12 @@ export async function handleMcpPost(req: NextRequest): Promise<Response> {
   const token = extractToken(req);
   const user = await authenticate(token);
   if (!user) return withCors(unauthorized());
+  // v1.7.2 security: per-token rate limit (generous; blocks sustained abuse)
+  if (!rateLimit(`mcp:${user.id}`, 1200, 60_000)) {
+    return withCors(Response.json(rpcError(null, -32603, "Rate limited — slow down"), { status: 429 }));
+  }
+  // the DB row no longer carries plaintext tokens — use the request token for prompts
+  const actor = { id: user.id, token: token ?? "" };
 
   let body: RpcRequest | RpcRequest[];
   try {
@@ -1648,6 +1655,10 @@ export async function handleMcpPost(req: NextRequest): Promise<Response> {
   if (requests.length === 0) {
     return withCors(Response.json(rpcError(null, -32600, "Invalid Request: empty batch"), { status: 400 }));
   }
+  // v1.7.2 security: cap batch size — unbounded batches enable CPU/memory DoS
+  if (requests.length > 25) {
+    return withCors(Response.json(rpcError(null, -32600, "Invalid Request: batch too large (max 25)"), { status: 400 }));
+  }
 
   // session header management
   const clientSessionId = req.headers.get("mcp-session-id") ?? req.headers.get("Mcp-Session-Id");
@@ -1655,13 +1666,24 @@ export async function handleMcpPost(req: NextRequest): Promise<Response> {
   const initReq = requests.find((r) => r.method === "initialize");
   if (initReq && !clientSessionId) {
     outSessionId = newMcpSessionId();
+    // v1.7.2 security: evict stale sessions (>24h) and cap the registry —
+    // previously this map only ever grew (memory-exhaustion vector)
+    if (mcpSessions.size > 10_000) {
+      const cutoff = Date.now() - 24 * 60 * 60_000;
+      for (const [k, v] of mcpSessions) if (v.createdAt < cutoff) mcpSessions.delete(k);
+      while (mcpSessions.size >= 10_000) {
+        const oldest = mcpSessions.keys().next().value;
+        if (oldest === undefined) break;
+        mcpSessions.delete(oldest);
+      }
+    }
     mcpSessions.set(outSessionId, { userId: user.id, createdAt: Date.now() });
   }
 
   const results: Record<string, unknown>[] = [];
   for (const r of requests) {
     try {
-      const res = await dispatch(user, r, req);
+      const res = await dispatch(actor, r, req);
       if (res && Object.keys(res).length > 0) results.push(res);
     } catch (err) {
       results.push(rpcError(r.id ?? null, -32603, "Internal error", err instanceof Error ? err.message : String(err)));

@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const payload = {
     format: "zaimem-memories",
     version: 1,
-    account: maskToken(user.token),
+    account: maskToken(extractToken(req) ?? ""),
     exportedAt: new Date().toISOString(),
     count: rows.length,
     memories: rows,
