@@ -32,7 +32,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          vercel pull --yes --environment=production --git-branch=main --token=$VERCEL_TOKEN
+          vercel pull --yes --environment=production --token=$VERCEL_TOKEN
           vercel env pull .env.local --yes --environment=production --token=$VERCEL_TOKEN
 
       - name: Build (prebuilt)
