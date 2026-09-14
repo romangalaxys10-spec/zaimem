@@ -314,40 +314,53 @@ export async function getPinnedMemories(userId: string, project?: string | null,
   });
 }
 
-/** Assemble the enhanced-context markdown block returned by zaimem_enhance_context. */
+/** Assemble the enhanced-context markdown block returned by zaimem_enhance_context.
+ *  headroom=true (user-level toggle, headroomlabs-ai/headroom pattern) compresses
+ *  the injection HARDER: shorter excerpts, fewer protocol lines, digest capped —
+ *  originals stay full-fidelity in the store (retrieve via doc_read / recall). */
 export function buildEnhanceBlock(opts: {
   currentMessage: string;
   hits: RecallHit[];
   pinned?: { id: string; kind: string; content: string; source?: string | null }[];
   skillMatch: { announcement: string; skill: string; confidence: number; difficulty?: string; iterationBudget?: number; protocol?: string } | null;
   recentDigest?: string | null;
+  headroom?: boolean;
 }): string {
+  const headroom = !!opts.headroom;
+  const PIN_CAP = headroom ? 150 : 260;
+  const HIT_CAP = headroom ? 170 : 320;
+  const DIGEST_CAP = headroom ? 600 : 1200;
   const parts: string[] = [];
-  parts.push(`⟢ ZaiMem context boost — auto-injected inventory (invisible to user)`);
+  parts.push(`⟢ ZaiMem context boost — auto-injected inventory (invisible to user)${headroom ? " · HEADROOM compression ON" : ""}`);
   if (opts.pinned?.length) {
     parts.push(`\n【Pinned — always in force】`);
     for (const p of opts.pinned) {
       const tag = p.source ? ` [doc:${p.source}]` : "";
-      parts.push(`📌 [${p.kind}]${tag} ${p.content.replace(/\s+/g, " ").slice(0, 260)}${p.content.length > 260 ? "…" : ""}`);
+      parts.push(`📌 [${p.kind}]${tag} ${p.content.replace(/\s+/g, " ").slice(0, PIN_CAP)}${p.content.length > PIN_CAP ? "…" : ""}`);
     }
   }
   if (opts.hits.length) {
     parts.push(`\n【Relevant long-term memory — top ${opts.hits.length}】`);
     for (const h of opts.hits) {
       const tag = h.source ? ` [doc:${h.source}]` : "";
-      parts.push(`• [${h.kind}]${tag} ${h.content.replace(/\s+/g, " ").slice(0, 320)}${h.content.length > 320 ? "…" : ""}`);
+      parts.push(`• [${h.kind}]${tag} ${h.content.replace(/\s+/g, " ").slice(0, HIT_CAP)}${h.content.length > HIT_CAP ? "…" : ""}`);
     }
   } else {
     parts.push(`\n【Relevant long-term memory】none above threshold — treat this as a fresh topic.`);
   }
   if (opts.recentDigest) {
-    parts.push(`\n【Session digest so far】\n${opts.recentDigest.slice(0, 1200)}`);
+    parts.push(`\n【Session digest so far】\n${opts.recentDigest.slice(0, DIGEST_CAP)}`);
   }
   if (opts.skillMatch) {
     parts.push(`\n【Skill activation】${opts.skillMatch.announcement}`);
-    if (opts.skillMatch.protocol) {
+    if (opts.skillMatch.protocol && !headroom) {
       parts.push(`Protocol (follow for this task):\n${opts.skillMatch.protocol.slice(0, 2200)}`);
+    } else if (opts.skillMatch.protocol && headroom) {
+      parts.push(`(full skill protocol withheld by HEADROOM — fetch with zaimem_get_skill {name: "${opts.skillMatch.skill}"} only if needed)`);
     }
+  }
+  if (headroom) {
+    parts.push(`\nHEADROOM mode: excerpts are compressed to preserve context-window headroom. Full originals remain in the store — pull exact text with zaimem_doc_read {source, part} or zaimem_recall when precision matters.`);
   }
   parts.push(`\nUse silently. If memories conflict with the user's latest message, the user wins. Store any NEW durable fact with zaimem_remember.`);
   return parts.join("\n");
@@ -431,7 +444,7 @@ export async function forgetMemories(opts: {
   const query = opts.query?.trim();
   if (query) {
     const qLower = query.toLowerCase();
-    let qvec: number[] | null = null;
+    let qvec: Float64Array | null = null;
     try { qvec = embed(query); } catch { qvec = null; }
     matches = pool
       .filter((m) => {

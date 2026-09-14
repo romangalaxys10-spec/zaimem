@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     userId: user.id,
     createdAt: user.createdAt,
     lastSeenAt: user.lastSeenAt,
+    headroom: !!user.headroom,
     counts: {
       sessions,
       memories,

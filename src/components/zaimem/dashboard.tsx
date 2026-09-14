@@ -9,7 +9,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   BrainCircuit, KeyRound, Copy, Check, Eye, EyeOff, LogOut,
   MessageSquare, Database, Gauge, Zap, Terminal, Link2, ShieldCheck, RefreshCw, Github,
+  Video, FolderKanban, Feather, CloudUpload, ArrowRight, Lock,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import {
   buildMagicPrompt, buildMcpJsonConfig, mcpEndpoint, SETUP_STEPS,
@@ -19,6 +21,8 @@ import {
   type AuthInfo, fmtTokens,
 } from "./panels";
 import { CloudDbPanel } from "./cloud-db";
+import { ProjectsPanel } from "./projects-panel";
+import { MeetingsPanel } from "./meetings-panel";
 import { GlobalSearch, type SearchTarget } from "./search-bar";
 
 interface DashboardProps {
@@ -42,6 +46,8 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
   const [copied, setCopied] = useState<string | null>(null);
   const [tab, setTab] = useState("connect");
   const [focusSessionId, setFocusSessionId] = useState<string | null>(null);
+  const [ghLinked, setGhLinked] = useState<boolean | null>(null);
+  const [headroom, setHeadroom] = useState(false);
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -52,8 +58,15 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
   const loadInfo = () => {
     fetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then(setInfo)
+      .then((d) => {
+        setInfo(d);
+        setHeadroom(!!d.headroom);
+      })
       .catch(() => setInfo(null));
+    fetch("/api/github", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setGhLinked(!!d?.linked))
+      .catch(() => setGhLinked(null));
   };
   useEffect(loadInfo, []);
 
@@ -64,6 +77,22 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
       .then((d) => d && setInfo(d))
       .catch(() => {});
   }, [tab, token]);
+
+  async function toggleHeadroom(on: boolean) {
+    setHeadroom(on);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ headroom: on }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      toast({ title: on ? "Headroom compression ON" : "Headroom compression OFF", description: on ? "Context blocks are now compressed harder — originals stay retrievable." : "Context blocks return to full length." });
+    } catch {
+      setHeadroom(!on);
+      toast({ title: "Toggle failed", variant: "destructive" });
+    }
+  }
 
   async function copy(text: string, label: string) {
     try {
@@ -130,6 +159,13 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
           {/* global search */}
           <GlobalSearch token={token} onNavigate={handleSearchNavigate} />
 
+          {/* headroom switch */}
+          <div className="hidden items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 py-1 pl-2.5 pr-1.5 sm:flex" title="Headroom mode — compress context injections harder (headroomlabs-ai/headroom pattern)">
+            <Feather className={`h-3.5 w-3.5 shrink-0 ${headroom ? "text-amber-400" : "text-zinc-500"}`} />
+            <span className="text-[11px] font-medium text-zinc-300">Headroom</span>
+            <Switch checked={headroom} onCheckedChange={toggleHeadroom} className="scale-[0.8] data-[state=checked]:bg-amber-500" aria-label="Toggle headroom compression mode" />
+          </div>
+
           {/* token chip */}
           <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 py-1 pl-2.5 pr-1">
             <KeyRound className="h-3.5 w-3.5 shrink-0 text-violet-400" />
@@ -181,6 +217,42 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
           ))}
         </div>
 
+        {/* GitHub cloud backup promo — impossible to miss (when not paired) */}
+        {ghLinked === false && (
+          <div className="mb-6 overflow-hidden rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/[0.12] via-emerald-500/[0.05] to-transparent">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex flex-wrap items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20">
+                  <CloudUpload className="h-5 w-5 text-emerald-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="flex flex-wrap items-center gap-2 text-sm font-bold text-emerald-200">
+                    FREE upgrade: host your memory on YOUR OWN GitHub private repo
+                    <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-300">100% free · no card</Badge>
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-300">
+                    Pair a GitHub token once and every session, memory, project & file is <span className="font-semibold text-white">auto-synced in real time</span> to a private repo in your GitHub account — so your memory doesn&apos;t eat ZaiMem&apos;s local storage and survives anything. It takes ~2 minutes:
+                  </p>
+                  <div className="mt-2 grid gap-1.5 text-[11px] text-zinc-400 sm:grid-cols-3">
+                    <span><span className="mr-1 font-bold text-emerald-400">1.</span>In the Cloud DB tab, open the pre-filled token link → GitHub opens with the <code className="font-mono">repo</code> scope already set.</span>
+                    <span><span className="mr-1 font-bold text-emerald-400">2.</span>Click Generate, copy the token (starts with <code className="font-mono">ghp_</code>).</span>
+                    <span><span className="mr-1 font-bold text-emerald-400">3.</span>Paste it in the Cloud DB tab. Done — private repo appears in your account.</span>
+                  </div>
+                  <p className="mt-2 flex items-center gap-1.5 text-[11px] text-zinc-500"><Lock className="h-3 w-3" /> Repo is private, only you can read it · token is encrypted (AES-256-GCM) · revoke anytime on GitHub.</p>
+                </div>
+                <Button onClick={() => setTab("cloud")} className="shrink-0 bg-emerald-600 text-xs text-white hover:bg-emerald-500">
+                  Set up free backup <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </CardContent>
+          </div>
+        )}
+        {ghLinked === true && (
+          <div className="mb-5 flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-1.5 text-[11px] text-emerald-300">
+            <Github className="h-3.5 w-3.5" /> Backed up: your memory auto-syncs to your private GitHub repo (free storage). <button onClick={() => setTab("cloud")} className="underline underline-offset-2 hover:text-emerald-200">Manage →</button>
+          </div>
+        )}
+
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="mb-5 flex h-auto w-full flex-wrap gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
             <TabsTrigger value="connect" className={TAB_TRIGGER}>
@@ -191,6 +263,12 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
             </TabsTrigger>
             <TabsTrigger value="memory" className={TAB_TRIGGER}>
               <Database className="mr-1 h-3.5 w-3.5" /> Memory
+            </TabsTrigger>
+            <TabsTrigger value="projects" className={TAB_TRIGGER}>
+              <FolderKanban className="mr-1 h-3.5 w-3.5" /> Projects
+            </TabsTrigger>
+            <TabsTrigger value="meetings" className={TAB_TRIGGER}>
+              <Video className="mr-1 h-3.5 w-3.5" /> Meetings
             </TabsTrigger>
             <TabsTrigger value="skills" className={TAB_TRIGGER}>
               <Zap className="mr-1 h-3.5 w-3.5" /> Skills
@@ -320,6 +398,12 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
           <TabsContent value="memory">
             <MemoryPanel token={token} refreshToken={loadInfo} />
           </TabsContent>
+          <TabsContent value="projects">
+            <ProjectsPanel token={token} refreshToken={loadInfo} />
+          </TabsContent>
+          <TabsContent value="meetings">
+            <MeetingsPanel token={token} refreshToken={loadInfo} />
+          </TabsContent>
           <TabsContent value="skills">
             <SkillsPanel token={token} refreshToken={loadInfo} />
           </TabsContent>
@@ -334,7 +418,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
 
       <footer className="relative z-10 mt-auto border-t border-white/5 bg-black/30">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-[11px] text-zinc-500 sm:px-6">
-          <span>ZaiMem v1.6 — local vector engine · smart-skill port · streamable-http MCP · GitHub cloud DB · scheduled backup · global search · document ingestion · pin & forget</span>
+          <span>ZaiMem v1.7 — 33 MCP tools · vector memory · smart skills · session handoffs · project agent teams · meeting intelligence · web tools · HEADROOM compression · GitHub cloud DB · scheduled backup · global search · document ingestion · pin & forget</span>
           <Badge variant="outline" className="border-white/10 text-[10px] text-zinc-400">token saver: auto-saved in this browser</Badge>
         </div>
       </footer>

@@ -186,9 +186,9 @@ export interface SkillMatch {
 }
 
 /** Auto-trigger detection — ported dual mechanism from zcode-smart-skill. */
-export function detectSkill(taskText: string, registry: BuiltinSkill[]): SkillMatch | null {
+export function detectSkill(taskText: string, registry: { name: string; triggers: string[] }[]): SkillMatch | null {
   const t = taskText.toLowerCase();
-  let best: { skill: BuiltinSkill; score: number; matched: string[] } | null = null;
+  let best: { skill: { name: string; triggers: string[] }; score: number; matched: string[] } | null = null;
 
   for (const skill of registry) {
     const matched: string[] = [];

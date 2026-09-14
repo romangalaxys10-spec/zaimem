@@ -173,6 +173,8 @@ export async function globalSearch(userId: string, rawQuery: string, filters: Se
     if (c === 0) continue;
     byId.set(m.id, {
       id: m.id, kind: m.kind, content: m.content, sessionId: m.sessionId,
+      source: null, pinned: false,
+      details: { sim: 0, recency: 0, keyword: 0, importance: Math.round(m.importance * 0.05 * 1000) / 1000, pin: 0, bm25: 0 },
       score: Math.min(0.99, 0.3 + c * 0.15 + m.importance * 0.1),
       createdAt: m.createdAt, accessCount: m.accessCount,
     });

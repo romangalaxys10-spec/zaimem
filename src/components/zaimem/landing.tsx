@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import {
   BrainCircuit, KeyRound, DatabaseZap, Gauge, ScanSearch,
   Layers, ShieldCheck, Sparkles, Loader2, ArrowRight, Github,
-  Globe, Send, Newspaper, LifeBuoy, Check, Terminal,
+  Globe, Send, Newspaper, LifeBuoy, Check, Terminal, Lock, RefreshCw,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -276,6 +276,8 @@ const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
       { name: "Token accounting", desc: "every saved token counted" },
       { name: "Document ingestion", desc: "PDF / DOCX / TXT → chunked vectors" },
       { name: "Pinned & forget", desc: "always-in-force pins · preview-then-delete" },
+      { name: "Meeting intelligence", desc: "transcript → summary → action items (Tactiq-style)" },
+      { name: "HEADROOM compression", desc: "togglable harder compression of context blocks" },
     ],
   },
   {
@@ -286,6 +288,10 @@ const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
       { name: "Difficulty budgets", desc: "light 2 · medium 6 · deep 12" },
       { name: "Handoff briefs", desc: "TRUST-clause protected summaries" },
       { name: "Session timeline", desc: "full transcripts & summaries" },
+      { name: "Pre-created sessions", desc: "bootstrap prompts to continue anywhere" },
+      { name: "Session handoffs", desc: "paste-ready prompt for any fresh agent chat" },
+      { name: "Project agent teams", desc: "connect agents, shared brief, files & memory" },
+      { name: "Universal tools", desc: "web search · web fetch · calc · time · think" },
     ],
   },
   {
@@ -312,7 +318,7 @@ const INCLUDED: { group: string; items: { name: string; desc: string }[] }[] = [
 
 const STEPS = [
   { n: "01", title: "Open ZaiMem", body: "You're here. A private token is generated for you automatically — no email, no password." },
-  { n: "02", title: "Add the MCP endpoint", body: "In chat.z.ai agent mode, add the ZaiMem MCP server with your endpoint URL + token." },
+  { n: "02", title: "Add the MCP endpoint", body: "In any MCP-capable agent (chat.z.ai, Claude Code, Cursor, Cline, Windsurf, Trae, Antigravity, zcode, Koda, Pi, Grok…), add the ZaiMem MCP server with your endpoint URL + token." },
   { n: "03", title: "Paste the magic prompt", body: "The dashboard hands you a ready-made prompt containing the endpoint and your key." },
   { n: "04", title: "Chat enhanced", body: "Session auto-syncs: memories boot, context gets boosted, tokens get saved, skills auto-trigger." },
 ];
@@ -364,7 +370,7 @@ function HeroDemo() {
         <span className="h-2.5 w-2.5 rounded-full bg-rose-500/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-amber-500/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/70" />
-        <span className="ml-2 text-[11px] text-zinc-400">chat.z.ai — agent mode</span>
+        <span className="ml-2 text-[11px] text-zinc-400">any MCP agent — Claude Code · Cursor · Cline · chat.z.ai…</span>
       </div>
       {/* looping conversation */}
       <div className="flex h-[240px] flex-col justify-end gap-2.5 px-4 pb-3 pt-4 sm:h-[260px]">
@@ -475,7 +481,7 @@ export function Landing({ onToken }: LandingProps) {
           <motion.div {...reveal} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs text-zinc-300">
               <Sparkles className="h-3 w-3 text-violet-400" />
-              MCP-native · Built for chat.z.ai agent mode
+              MCP-native · Works with every MCP agent
             </span>
           </motion.div>
 
@@ -484,7 +490,7 @@ export function Landing({ onToken }: LandingProps) {
             transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
             className="mx-auto mt-6 max-w-4xl text-[44px] font-semibold leading-[1.06] tracking-[-0.03em] sm:text-6xl lg:text-7xl"
           >
-            Your chat.z.ai sessions
+            Your AI agent sessions
             <span className="block bg-gradient-to-r from-violet-400 via-fuchsia-300 to-emerald-300 bg-clip-text text-transparent">
               finally remember everything.
             </span>
@@ -496,8 +502,9 @@ export function Landing({ onToken }: LandingProps) {
             className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-zinc-400 sm:text-lg"
           >
             ZaiMem gives every AI agent a persistent vector memory, an automatic
-            context enhancer and a token saver. Generate a token, paste one prompt into
-            agent mode — your session syncs itself.
+            context enhancer and a token saver. Works with chat.z.ai, Claude Code, Cursor,
+            Cline, Windsurf, Trae, Antigravity, zcode, Koda, Pi, Grok and any other MCP client —
+            paste one prompt and your session syncs itself.
           </motion.p>
 
           <motion.div
@@ -695,6 +702,43 @@ export function Landing({ onToken }: LandingProps) {
           </div>
         </section>
 
+        {/* ── GitHub free cloud backup band ─────────────────────────────── */}
+        <section className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
+          <motion.div
+            {...reveal}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="relative overflow-hidden rounded-[2rem] border border-emerald-500/25 bg-gradient-to-b from-emerald-500/12 via-white/[0.03] to-transparent px-6 py-12 text-center sm:px-10"
+          >
+            <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[480px] -translate-x-1/2 rounded-full bg-emerald-500/15 blur-[100px]" aria-hidden />
+            <h2 className="relative text-2xl font-semibold tracking-[-0.02em] text-emerald-100 sm:text-3xl">
+              Free unlimited memory hosting — on YOUR GitHub.
+            </h2>
+            <p className="relative mx-auto mt-3 max-w-2xl text-[14px] leading-relaxed text-zinc-300">
+              Pair ZaiMem with a GitHub Personal Access Token and every session, memory, project & meeting auto-syncs
+              <span className="font-semibold text-white"> in real time</span> to a <span className="font-semibold text-emerald-300">private repo in your own GitHub account</span>.
+              Your memory stops eating local storage and survives anything. Private repos are <span className="font-semibold text-emerald-300">free on GitHub</span> — no card, no plan, 2-minute setup:
+            </p>
+            <div className="relative mx-auto mt-6 grid max-w-3xl gap-3 text-left sm:grid-cols-3">
+              {[
+                { n: "1", t: "Open the pre-filled token link", d: "Cloud DB tab → GitHub opens with the repo scope pre-set." },
+                { n: "2", t: "Generate & copy", d: "Click Generate, copy the token (ghp_…). Encrypted before storage." },
+                { n: "3", t: "Paste & pair", d: "ZaiMem creates your private repo and mirrors everything, forever." },
+              ].map((st) => (
+                <div key={st.n} className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/25 text-[10px] font-bold text-emerald-300">{st.n}</span>
+                  <p className="mt-2 text-[13px] font-medium text-zinc-200">{st.t}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">{st.d}</p>
+                </div>
+              ))}
+            </div>
+            <p className="relative mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+              <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> only the paired token can read the repo</span>
+              <span className="flex items-center gap-1"><RefreshCw className="h-3 w-3" /> real-time auto-sync + daily scheduled backup</span>
+              <span className="flex items-center gap-1"><Github className="h-3 w-3" /> revoke anytime on GitHub</span>
+            </p>
+          </motion.div>
+        </section>
+
         {/* ── closing CTA ──────────────────────────────────────────────── */}
         <section className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
           <motion.div
@@ -725,7 +769,7 @@ export function Landing({ onToken }: LandingProps) {
       {/* footer */}
       <footer className="relative z-10 border-t border-white/[0.06] bg-black/30 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-4 py-6 text-xs text-zinc-400 sm:flex-row sm:px-6">
-          <span>ZaiMem v1.6 — session memory & context enhancer for chat.z.ai</span>
+          <span>ZaiMem v1.7 — session memory & context enhancer for every MCP agent</span>
           <span className="flex items-center gap-1.5">
             Powered by <BrainCircuit className="h-3 w-3 text-violet-400" /> local vector engine · zcode-smart-skill port
           </span>

@@ -44,15 +44,20 @@
 ## Features
 
 - **Automated private tokens** — no signup: visit the app, get a `zm_…` token instantly, log in with it.
-- **Magic prompt** — the dashboard generates a ready-to-paste activation prompt with your MCP endpoint and key embedded. Paste it into any chat.z.ai agent-mode chat and the session is wired to ZaiMem.
-- **MCP server** (JSON-RPC 2.0, streamable HTTP) — 14 tools, 3 resources, prompt templates, batch calls, session ids, CORS.
+- **Magic prompt (universal)** — the dashboard generates a ready-to-paste activation prompt with your MCP endpoint and key embedded. Works in any MCP-capable agent: chat.z.ai, Claude Code, Cursor, Cline, Windsurf, Trae, Antigravity, zcode, Koda, Pi, Grok and more.
+- **MCP server** (JSON-RPC 2.0, streamable HTTP) — 33 tools, 4 resources, prompt templates, batch calls, session ids, CORS.
 - **Document ingestion** — `zaimem_ingest_file` MCP tool + dashboard drag-and-drop upload (PDF / DOCX / TXT / MD / CSV / code): text is auto-chunked into ~600-token overlapping pieces, every chunk is embedded as a `document` memory tagged with its source filename, and re-ingestion is idempotent (same content hash → no-op; changed file → chunks replaced). Recall hits cite `[doc:file.pdf · part i/N]`.
 - **Pinned memories** — `zaimem_remember {pinned: true}` (or one click in the dashboard) marks a memory as always-in-force: it is injected into every `zaimem_enhance_context` block and gets a recall ranking boost.
 - **Right to be forgotten** — `zaimem_forget` MCP tool with a two-phase preview → confirm flow: match by id, semantic query, kind, source filename (purge a whole document) or created-before date; dashboard rows also support inline edit (re-embeds instantly) and pin toggle.
+- **Pre-created sessions & handoffs** — create a session *before* the work starts (title + brief + optional project), then copy its generated **bootstrap prompt** into a fresh agent chat in any IDE: the agent syncs onto that exact session with the brief, summary, key memories and open tasks baked in. Every existing session (even auto-created ones) has a **Continue elsewhere** prompt.
+- **Projects — agent teams** — a project is a shared workspace: team instructions, attached files/prompts and a shared memory namespace. Connect one or many agents (via the dashboard or `zaimem_project_brief {project, agent, role}`); agents see the roster, the brief, the files and everything teammates shared — and leave structured `zaimem_project_handoff` notes (done / in_progress / blocked) so the next agent picks up cleanly. Like a team of devs with one shared brain.
+- **Meeting intelligence (Tactiq-style, self-hosted)** — paste a Google Meet / Zoom / Teams transcript: ZaiMem chunks + embeds the full transcript, writes an LLM summary with every decision, extracts **action items** and pushes them onto the global tasks board. Ask across all meetings with `zaimem_meeting_search` ("what did we decide about X?").
+- **Universal tools** — the zero-config staples from the MCP ecosystem, wired into memory: `zaimem_web_search` + `zaimem_web_fetch` (JS-rendered pages, optional auto-ingest as searchable memory), `zaimem_calc` (safe arithmetic, no code execution), `zaimem_time` (IANA timezones), `zaimem_think` (ledger-backed sequential-thinking scratchpad that survives compaction).
+- **HEADROOM compression mode** — togglable (dashboard switch or `zaimem_headroom {enabled}`), inspired by [headroomlabs-ai/headroom](https://github.com/headroomlabs-ai/headroom): when ON, every context injection is compressed harder (shorter excerpts, skill protocols withheld) to preserve context-window headroom, while originals stay full-fidelity in the store and remain retrievable via `zaimem_doc_read` / `zaimem_recall`. Lifetime tokens freed are counted per account.
 - **Local vector memory** — 384-dim hashed word/bigram/char-4gram embeddings with cosine recall; auto-dedupe (0.94 duplicate / 0.80 merge thresholds), recency + keyword boosts, context-block assembly.
 - **Token saver** — LLM-powered digests (with extractive fallback) compress long context; token accounting per action.
 - **Smart skills** (zcode-smart-skill integration) — SKILL.md skill registry, auto trigger detection, difficulty budgets (E5: 2/6/12), ledger pages (`notes.md`, `tasks.json`) with size budgets, handoff brief with TRUST clause, reflection schema.
-- **GitHub Cloud DB** — pair a GitHub PAT; a private repo is auto-created and every data change is auto-synced (sha-based idempotent pushes, 4s debounced, full audit trail). Your repo, your data.
+- **GitHub Cloud DB (free hosting)** — pair a GitHub PAT (pre-filled token link, 2 minutes, free — private repos cost nothing) and a private repo is auto-created in YOUR account; every session, memory, project & file is auto-synced in real time (sha-based idempotent pushes, 4s debounced, full audit trail). Your memory stops consuming ZaiMem's local storage entirely — the dashboard keeps the recommendation visible until you pair.
 - **Scheduled daily backup** — an optional heartbeat push of a full snapshot ~every 24h (configurable via `ZAIMEM_BACKUP_HOURS`), even when nothing changed — proof the backup pipeline is alive. Toggle it in the Cloud DB panel.
 - **Global search (⌘K)** — one query across all sessions, memories (vector + substring), ledger pages and skills, with jump-to-result navigation. Filter results by kind (sessions / memories / ledger / skills) and by date range (24 h → 1 year) right from the command bar.
 
@@ -129,7 +134,7 @@ The endpoint implements the Model Context Protocol over streamable HTTP (`initia
 
 | Tool | Purpose |
 |---|---|
-| `zaimem_sync_session` | Register/sync the current chat.z.ai session |
+| `zaimem_sync_session` | Register/sync the current agent session |
 | `zaimem_remember` | Store a memory (auto-dedupe + merge, optional `pinned`) |
 | `zaimem_forget` | Right-to-be-forgotten: preview → confirm deletion by id/query/kind/source/date |
 | `zaimem_ingest_file` | Ingest a whole document: chunk + embed + hash-dedupe, source citations |
@@ -143,6 +148,25 @@ The endpoint implements the Model Context Protocol over streamable HTTP (`initia
 | `zaimem_ledger_read` | Read a ledger page |
 | `zaimem_session_summary` | Distill an end-of-session summary |
 | `zaimem_handoff_brief` | Cross-session handoff brief (TRUST clause) |
+| `zaimem_remember_many` | Batch-store up to 25 memories in one round-trip |
+| `zaimem_doc_read` | Progressive document loading: outline or one chunk |
+| `zaimem_session_status` | History pressure + activity report for a session |
+| `zaimem_brief_me` | "What's new since you left" cross-session digest |
+| `zaimem_resume` | Resume a session: summary + open tasks + checkpoint diff |
+| `zaimem_task_next` | Global task board: pick the next open task |
+| `zaimem_session_create` | Pre-create a custom session + get its bootstrap prompt |
+| `zaimem_session_prompt` | Bootstrap prompt to continue any session elsewhere |
+| `zaimem_project_brief` | Join a project team + get the full brief (roster, files, shared memory) |
+| `zaimem_project_handoff` | Structured end-of-shift handoff to teammates |
+| `zaimem_ingest_meeting` | Meeting transcript → chunks + summary + action items |
+| `zaimem_meetings_list` | List ingested meetings with summaries |
+| `zaimem_meeting_search` | "Ask my meetings" — semantic search across transcripts |
+| `zaimem_web_search` | Web search (zero API keys) |
+| `zaimem_web_fetch` | Read a web page as text (+ optional auto-ingest) |
+| `zaimem_calc` | Safe arithmetic calculator (shunting-yard, no code execution) |
+| `zaimem_time` | Current time / timezone info |
+| `zaimem_think` | Sequential-thinking scratchpad (ledger-backed chain) |
+| `zaimem_headroom` | HEADROOM compression mode: status + toggle |
 
 ### Resources & prompts
 

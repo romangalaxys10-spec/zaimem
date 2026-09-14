@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate, extractToken, unauthorized } from "@/lib/zaimem/auth";
 import { db } from "@/lib/db";
-import { pairUser, unpairUser, syncUser, GhError, listSnapshotHistory } from "@/lib/zaimem/github";
+import { pairUser, unpairUser, syncUser, GhError, listSnapshotHistory, restoreFromSnapshot } from "@/lib/zaimem/github";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +12,20 @@ function fail(e: unknown) {
   return NextResponse.json({ error: "github", message: e instanceof Error ? e.message : String(e) }, { status: 500 });
 }
 
-/** GET /api/github — pairing status + recent sync log (+ schedule fields) */
+/** GET /api/github — pairing status + recent sync log (+ schedule fields).
+ *  GET /api/github?history=1 — snapshot commit history for point-in-time restore. */
 export async function GET(req: NextRequest) {
   const user = await authenticate(extractToken(req));
   if (!user) return unauthorized();
+
+  if (req.nextUrl.searchParams.get("history")) {
+    try {
+      const history = await listSnapshotHistory(user.id);
+      return NextResponse.json({ ok: true, history });
+    } catch (e) {
+      return fail(e);
+    }
+  }
 
   const link = await db.githubLink.findUnique({ where: { userId: user.id } });
   const logs = await db.syncLog.findMany({
@@ -51,21 +61,6 @@ export async function GET(req: NextRequest) {
     counts,
     logs,
   });
-}
-
-/** GET /api/github?history=1 — snapshot commit history for point-in-time restore. */
-export async function GET(req: NextRequest) {
-  const user = await authenticate(extractToken(req));
-  if (!user) return unauthorized();
-  if (req.nextUrl.searchParams.get("history")) {
-    try {
-      const history = await listSnapshotHistory(user.id);
-      return NextResponse.json({ ok: true, history });
-    } catch (e) {
-      return fail(e);
-    }
-  }
-  return NextResponse.json({ error: "bad_request", message: "Nothing to GET — use ?history=1 or POST actions." }, { status: 400 });
 }
 
 /**

@@ -13,6 +13,7 @@ model User {
   id          String        @id @default(cuid())
   token       String        @unique // zm_<64hex> private access token
   label       String? // optional display label
+  headroom    Boolean       @default(false) // Headroom mode — compress context injections harder (headroomlabs-ai/headroom pattern)
   createdAt   DateTime      @default(now())
   lastSeenAt  DateTime      @default(now())
   sessions    Session[]
@@ -23,6 +24,7 @@ model User {
   github      GithubLink?
   syncLogs    SyncLog[]
   answerCaches AnswerCache[]
+  projects    Project[]
 }
 
 model Session {
@@ -32,6 +34,8 @@ model Session {
   externalId  String? // chat.z.ai session id when provided by the agent
   title       String       @default("Untitled session")
   topic       String?
+  origin      String       @default("agent") // agent (auto-created via MCP) | user (pre-created by the user)
+  brief       String? // for pre-created sessions: what the future session should work on
   project     String? // project namespace — scoped recall/enhance when set
   status      String       @default("active") // active | summarized | archived
   summary     String? // distilled end-of-session digest
@@ -171,4 +175,49 @@ model SyncLog {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ─── v1.7 Projects: shared workspace where a team of agents collaborates ─────
+
+model Project {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String // canonical namespace — matches Memory.project / Session.project
+  description  String?
+  instructions String? // team brief: goals, conventions, how agents should work
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  files        ProjectFile[]
+  agents       ProjectAgent[]
+
+  @@unique([userId, name])
+  @@index([userId, updatedAt])
+}
+
+model ProjectFile {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String // file name with extension, e.g. spec.md
+  content   String // full text content (instructions, prompts, specs)
+  size      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, name])
+}
+
+model ProjectAgent {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name       String // agent identity, e.g. "frontend-dev"
+  role       String? // e.g. "frontend" | "reviewer" | "tester"
+  joinedVia  String   @default("manual") // manual (dashboard) | mcp (agent joined itself)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@unique([projectId, name])
+  @@index([projectId, lastSeenAt])
 }

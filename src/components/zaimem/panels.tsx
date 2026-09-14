@@ -15,7 +15,7 @@ import {
   MessageSquare, Database, Gauge, Zap, Search, Trash2, Loader2,
   FileText, Layers, Clock, TrendingUp, Activity, Download, Upload,
   FileUp, CheckCircle2, Pin, PinOff, Pencil, Check, X, Archive,
-  ShieldAlert, GitBranch, History,
+  ShieldAlert, GitBranch, History, ClipboardCopy, CalendarPlus, Link2, Users, FolderKanban, Copy,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -28,6 +28,9 @@ export interface SessionSummary {
   status: string;
   summary: string | null;
   externalId: string | null;
+  origin?: string; // agent (auto) | user (pre-created)
+  brief?: string | null;
+  project?: string | null;
   turns: number;
   tokensSaved: number;
   memories: number;
@@ -36,7 +39,7 @@ export interface SessionSummary {
   updatedAt: string;
 }
 
-export interface SessionDetail extends SessionSummary {
+export interface SessionDetail extends Omit<SessionSummary, "memories" | "ledgerPages"> {
   memories: { id: string; kind: string; content: string; importance: number; accessCount: number; createdAt: string }[];
   ledgerPages: { id: string; path: string; content: string; updatedAt: string }[];
 }
@@ -130,10 +133,56 @@ async function api<T>(path: string, token: string, init?: RequestInit): Promise<
 
 // ─── Sessions panel ──────────────────────────────────────────────────────────
 
+// shared bootstrap-prompt modal (session handoffs + project invites)
+export function PromptModal({ open, title, hint, prompt, onClose }: { open: boolean; title: string; hint: string; prompt: string | null; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    if (!prompt) return;
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopied(true);
+      toast({ title: "Copied to clipboard", description: "Paste it into a fresh agent chat." });
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast({ title: "Copy failed", description: "Select the text manually and copy it.", variant: "destructive" });
+    }
+  };
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] border-white/10 bg-[#0d0d14] text-zinc-100 sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 pr-6">
+            <ClipboardCopy className="h-4 w-4 text-emerald-400" /> {title}
+          </DialogTitle>
+          <DialogDescription className="text-zinc-400">{hint}</DialogDescription>
+        </DialogHeader>
+        <ScrollArea className="max-h-[55vh] pr-3">
+          <pre className="whitespace-pre-wrap rounded-lg border border-white/5 bg-black/50 p-4 font-mono text-[11px] leading-relaxed text-zinc-300">
+            {prompt ?? "Loading…"}
+          </pre>
+        </ScrollArea>
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="ghost" onClick={onClose} className="text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-200">Close</Button>
+          <Button size="sm" onClick={copy} disabled={!prompt} className="bg-emerald-600 text-xs text-white hover:bg-emerald-500">
+            {copied ? <Check className="mr-1 h-3.5 w-3.5" /> : <Copy className="mr-1 h-3.5 w-3.5" />}
+            {copied ? "Copied" : "Copy prompt"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function SessionsPanel({ token, refreshToken, focusSessionId, onFocusHandled }: { token: string; refreshToken: () => void; focusSessionId?: string | null; onFocusHandled?: () => void }) {
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [detail, setDetail] = useState<SessionDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  // pre-create session form
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({ title: "", brief: "", project: "" });
+  // bootstrap prompt modal (create result + continue-elsewhere)
+  const [promptModal, setPromptModal] = useState<{ title: string; hint: string; prompt: string | null } | null>(null);
 
   const load = async () => {
     try {
@@ -177,48 +226,148 @@ export function SessionsPanel({ token, refreshToken, focusSessionId, onFocusHand
     }
   }
 
+  async function createSession() {
+    if (!form.title.trim()) {
+      toast({ title: "Title required", description: "Give the session a name first.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      const data = await api<{ session: SessionSummary; prompt: string }>("/api/sessions", token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: form.title, brief: form.brief || undefined, project: form.project || undefined }),
+      });
+      setSessions((s) => [data.session, ...(s ?? [])]);
+      setCreating(false);
+      setForm({ title: "", brief: "", project: "" });
+      setPromptModal({
+        title: `Session "${data.session.title}" is ready`,
+        hint: "Paste this bootstrap prompt into a fresh agent chat (any IDE) — it syncs straight onto this session with the brief baked in.",
+        prompt: data.prompt,
+      });
+      refreshToken();
+    } catch (e) {
+      toast({ title: "Create failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function continueElsewhere(id: string) {
+    setPromptModal({ title: "Bootstrap prompt", hint: "Loading…", prompt: null });
+    try {
+      const data = await api<{ prompt: string }>(`/api/sessions/${id}/prompt`, token);
+      setPromptModal({
+        title: "Continue this session elsewhere",
+        hint: "Paste this prompt into any fresh agent chat / IDE — it resumes THIS session: same id, summary, memories and open tasks.",
+        prompt: data.prompt,
+      });
+    } catch (e) {
+      setPromptModal(null);
+      toast({ title: "Prompt generation failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
+    }
+  }
+
   if (sessions === null) {
     return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-violet-400" /></div>;
   }
-  if (sessions.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <MessageSquare className="h-10 w-10 text-zinc-500" />
-        <p className="text-sm text-zinc-400">No synced sessions yet. Paste the magic prompt into chat.z.ai agent mode — sessions appear here automatically.</p>
-      </div>
-    );
-  }
+
+  const createForm = creating ? (
+    <Card className="border-emerald-500/25 bg-emerald-500/[0.04] md:col-span-2">
+      <CardContent className="space-y-3 p-4">
+        <div className="flex items-center gap-2">
+          <CalendarPlus className="h-4 w-4 text-emerald-400" />
+          <h3 className="text-sm font-semibold text-zinc-100">Pre-create a session</h3>
+          <span className="text-[11px] text-zinc-500">— describe the work now, start it in any IDE later</span>
+        </div>
+        <Input
+          value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+          placeholder="Session title, e.g. 'Refactor auth module'" className="border-white/10 bg-black/30 text-sm text-zinc-100 placeholder:text-zinc-600"
+        />
+        <textarea
+          value={form.brief} onChange={(e) => setForm((f) => ({ ...f, brief: e.target.value }))}
+          placeholder="Brief: what should this session accomplish? goals, constraints, context…"
+          rows={3}
+          className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/40"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            value={form.project} onChange={(e) => setForm((f) => ({ ...f, project: e.target.value }))}
+            placeholder="Project namespace (optional)" className="h-9 w-56 border-white/10 bg-black/30 text-xs text-zinc-100 placeholder:text-zinc-600"
+          />
+          <Button size="sm" onClick={createSession} disabled={busy} className="h-9 bg-emerald-600 text-xs text-white hover:bg-emerald-500">
+            {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CalendarPlus className="mr-1 h-3.5 w-3.5" />}
+            Create + get prompt
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setCreating(false)} className="h-9 text-xs text-zinc-400 hover:bg-white/5">Cancel</Button>
+        </div>
+      </CardContent>
+    </Card>
+  ) : (
+    <Card className="border-dashed border-white/10 bg-transparent md:col-span-2">
+      <CardContent className="flex flex-wrap items-center justify-between gap-2 p-4">
+        <p className="text-xs text-zinc-400">
+          <span className="font-semibold text-zinc-300">Starting something new?</span> Pre-create a session with a brief, then paste its bootstrap prompt into any fresh agent chat.
+        </p>
+        <Button size="sm" variant="outline" onClick={() => setCreating(true)} className="h-8 shrink-0 border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-300 hover:bg-emerald-500/20">
+          <CalendarPlus className="mr-1 h-3.5 w-3.5" /> Pre-create session
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
+  const sessionCards = sessions.length === 0 ? (
+    <div className="flex flex-col items-center gap-3 py-10 text-center md:col-span-2">
+      <MessageSquare className="h-10 w-10 text-zinc-500" />
+      <p className="max-w-md text-sm text-zinc-400">No sessions yet. Pre-create one above, or paste the magic prompt into an agent chat — sessions appear here automatically.</p>
+    </div>
+  ) : (
+    sessions.map((s, i) => (
+      <motion.div key={s.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.3) }}>
+        <Card className="group border-white/5 bg-white/[0.03] transition-colors hover:border-violet-500/25 hover:bg-white/[0.05]">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between gap-2">
+              <button onClick={() => openDetail(s.id)} className="min-w-0 flex-1 text-left">
+                <h3 className="truncate font-semibold text-zinc-100 group-hover:text-violet-300">{s.title}</h3>
+                <p className="mt-0.5 line-clamp-1 text-xs text-zinc-400">{s.brief ?? s.topic ?? "no topic recorded"}</p>
+              </button>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <Badge variant="outline" className={`text-[10px] ${s.status === "summarized" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-violet-500/30 bg-violet-500/10 text-violet-300"}`}>
+                  {s.status}
+                </Badge>
+                {s.origin === "user" && (
+                  <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-[10px] text-sky-300">pre-created</Badge>
+                )}
+                {s.project && (
+                  <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-[10px] text-amber-300">{s.project}</Badge>
+                )}
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-400">
+              <span className="flex items-center gap-1"><Database className="h-3 w-3" />{s.memories} memories</span>
+              <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{s.turns} turns</span>
+              {s.tokensSaved > 0 && <span className="flex items-center gap-1 text-amber-400/90"><Gauge className="h-3 w-3" />{fmtTokens(s.tokensSaved)} saved</span>}
+              {s.ledgerPages > 0 && <span className="flex items-center gap-1"><FileText className="h-3 w-3" />{s.ledgerPages} ledger</span>}
+              <span className="ml-auto flex items-center gap-1"><Clock className="h-3 w-3" />{fmtDate(s.updatedAt)}</span>
+            </div>
+            <div className="mt-3 flex justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+              <Button size="sm" variant="outline" onClick={() => openDetail(s.id)} className="h-7 border-white/10 bg-white/5 text-xs text-zinc-300 hover:bg-white/10">Inspect</Button>
+              <Button size="sm" variant="outline" onClick={() => continueElsewhere(s.id)} className="h-7 border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-300 hover:bg-emerald-500/20">
+                <Link2 className="mr-1 h-3 w-3" /> Continue elsewhere
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => remove(s.id)} className="h-7 text-xs text-rose-400/80 hover:bg-rose-500/10 hover:text-rose-300">Forget</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    ))
+  );
 
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      {sessions.map((s, i) => (
-        <motion.div key={s.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.3) }}>
-          <Card className="group border-white/5 bg-white/[0.03] transition-colors hover:border-violet-500/25 hover:bg-white/[0.05]">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-2">
-                <button onClick={() => openDetail(s.id)} className="min-w-0 flex-1 text-left">
-                  <h3 className="truncate font-semibold text-zinc-100 group-hover:text-violet-300">{s.title}</h3>
-                  <p className="mt-0.5 line-clamp-1 text-xs text-zinc-400">{s.topic ?? "no topic recorded"}</p>
-                </button>
-                <Badge variant="outline" className={`shrink-0 text-[10px] ${s.status === "summarized" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-violet-500/30 bg-violet-500/10 text-violet-300"}`}>
-                  {s.status}
-                </Badge>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-400">
-                <span className="flex items-center gap-1"><Database className="h-3 w-3" />{s.memories} memories</span>
-                <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{s.turns} turns</span>
-                {s.tokensSaved > 0 && <span className="flex items-center gap-1 text-amber-400/90"><Gauge className="h-3 w-3" />{fmtTokens(s.tokensSaved)} saved</span>}
-                {s.ledgerPages > 0 && <span className="flex items-center gap-1"><FileText className="h-3 w-3" />{s.ledgerPages} ledger</span>}
-                <span className="ml-auto flex items-center gap-1"><Clock className="h-3 w-3" />{fmtDate(s.updatedAt)}</span>
-              </div>
-              <div className="mt-3 flex justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                <Button size="sm" variant="outline" onClick={() => openDetail(s.id)} className="h-7 border-white/10 bg-white/5 text-xs text-zinc-300 hover:bg-white/10">Inspect</Button>
-                <Button size="sm" variant="ghost" onClick={() => remove(s.id)} className="h-7 text-xs text-rose-400/80 hover:bg-rose-500/10 hover:text-rose-300">Forget</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      ))}
+      {createForm}
+      {sessionCards}
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
         <DialogContent className="max-h-[85vh] border-white/10 bg-[#0d0d14] text-zinc-100 sm:max-w-2xl">
@@ -258,6 +407,14 @@ export function SessionsPanel({ token, refreshToken, focusSessionId, onFocusHand
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      <PromptModal
+        open={!!promptModal}
+        title={promptModal?.title ?? ""}
+        hint={promptModal?.hint ?? ""}
+        prompt={promptModal?.prompt ?? null}
+        onClose={() => setPromptModal(null)}
+      />
     </div>
   );
 }

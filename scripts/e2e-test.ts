@@ -72,13 +72,19 @@ async function main() {
 
   const tools = await rpc("tools/list", {}, token, 2, mcpSession);
   const toolNames: string[] = (tools.result?.tools ?? []).map((t: any) => t.name);
-  check("14 tools listed", toolNames.length === 14, toolNames);
+  check("33 tools listed", toolNames.length === 33, toolNames);
   check(
     "core tools present",
     ["zaimem_sync_session", "zaimem_remember", "zaimem_recall", "zaimem_enhance_context",
      "zaimem_save_tokens", "zaimem_detect_skill", "zaimem_list_skills", "zaimem_get_skill",
      "zaimem_ledger_write", "zaimem_ledger_read", "zaimem_session_summary", "zaimem_handoff_brief",
      "zaimem_ingest_file", "zaimem_forget",
+     "zaimem_remember_many", "zaimem_doc_read", "zaimem_session_status",
+     "zaimem_brief_me", "zaimem_resume", "zaimem_task_next",
+     "zaimem_session_create", "zaimem_session_prompt", "zaimem_project_brief", "zaimem_project_handoff",
+     "zaimem_ingest_meeting", "zaimem_meetings_list", "zaimem_meeting_search",
+     "zaimem_web_search", "zaimem_web_fetch", "zaimem_calc", "zaimem_time", "zaimem_think",
+     "zaimem_headroom",
     ].every((t) => toolNames.includes(t)),
   );
 
@@ -205,7 +211,10 @@ async function main() {
   check("summary distilled", (summary.result?.content?.[0]?.text ?? "").includes("distilled into long-term memory"));
 
   const resList = await rpc("resources/list", {}, token, 19, mcpSession);
-  check("resources listed", (resList.result?.resources ?? []).length === 3);
+  check("resources listed", (resList.result?.resources ?? []).length === 4, resList.result?.resources);
+
+  const resHandoff = await rpc("resources/read", { uri: "zaimem://handoff" }, token, 21, mcpSession);
+  check("handoff resource readable", (resHandoff.result?.contents?.[0]?.text ?? "").includes("# ZaiMem handoff brief"), resHandoff.error ?? "");
 
   const resRead = await rpc("resources/read", { uri: "zaimem://memory" }, token, 20, mcpSession);
   check("resource memory readable", (resRead.result?.contents?.[0]?.text ?? "").includes("pg_live_9911"));
@@ -532,6 +541,168 @@ async function main() {
     Array.isArray(statsInsights.topMemories) && typeof statsInsights.memory?.memories === "number",
     { days: statsInsights.dailySaved?.length, top: statsInsights.topMemories?.length, memory: statsInsights.memory },
   );
+
+  // ── 13. v1.7: session handoffs · project teams · meetings · universal tools · headroom ────
+  console.log("\n── 13. v1.7 sessions · projects · meetings · webtools ──");
+
+  const mkS = `v17${Date.now().toString(36)}`;
+
+  const sessCreate = await rpc("tools/call", {
+    name: "zaimem_session_create",
+    arguments: { title: `Pre-created ${mkS}`, brief: "Refactor the auth module and write tests", project: "auth-v2" },
+  }, token, 90, mcpSession);
+  const sessCreateText: string = sessCreate.result?.content?.[0]?.text ?? "";
+  const preSessionId: string = sessCreate.result?._meta?.session_id ?? "";
+  check("MCP session_create returns bootstrap prompt", sessCreateText.includes("Session pre-created") && sessCreateText.includes("zaimem_sync_session"), sessCreateText.slice(0, 200));
+  check("bootstrap prompt embeds session id + brief", preSessionId.length > 0 && sessCreateText.includes(preSessionId) && sessCreateText.includes("Refactor the auth module"), { preSessionId });
+
+  const sessPrompt = await rpc("tools/call", {
+    name: "zaimem_session_prompt",
+    arguments: { session_id: sessionId },
+  }, token, 91, mcpSession);
+  const sessPromptText: string = sessPrompt.result?.content?.[0]?.text ?? "";
+  check("MCP session_prompt resumes existing session", sessPromptText.includes(sessionId) && sessPromptText.includes("zaimem_resume"), sessPromptText.slice(0, 160));
+
+  const apiSess = await fetch(`${BASE}/api/sessions`, {
+    method: "POST", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ title: `API pre-created ${mkS}`, brief: "api-brief-check" }),
+  });
+  const apiSessData = await apiSess.json().catch(() => ({}));
+  check("POST /api/sessions creates + returns prompt", apiSess.status === 201 && apiSessData.session?.origin === "user" && (apiSessData.prompt ?? "").includes("zaimem_sync_session"), { status: apiSess.status, prompt: (apiSessData.prompt ?? "").slice(0, 100) });
+  const apiSessPrompt = await (await fetch(`${BASE}/api/sessions/${apiSessData.session.id}/prompt`, { headers: h })).json();
+  check("GET /api/sessions/[id]/prompt", (apiSessPrompt.prompt ?? "").includes(apiSessData.session.id) && (apiSessPrompt.prompt ?? "").includes("api-brief-check"));
+  const noAuthSess = await fetch(`${BASE}/api/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  check("POST /api/sessions requires auth", noAuthSess.status === 401);
+
+  const projName = `proj-${mkS}`;
+  const brief1 = await rpc("tools/call", {
+    name: "zaimem_project_brief",
+    arguments: { project: projName, agent: "frontend-dev", role: "frontend" },
+  }, token, 92, mcpSession);
+  const brief1Text: string = brief1.result?.content?.[0]?.text ?? "";
+  check("project_brief joins agent + returns brief", brief1Text.includes(`Project brief — "${projName}"`) && brief1Text.includes("frontend-dev") && brief1Text.includes("Team roster"), brief1Text.slice(0, 200));
+
+  await rpc("tools/call", {
+    name: "zaimem_project_brief",
+    arguments: { project: projName, agent: "backend-dev", role: "backend" },
+  }, token, 93, mcpSession);
+
+  const pShare = await rpc("tools/call", {
+    name: "zaimem_remember",
+    arguments: { content: `Team decision ${mkS}: we ship the auth refactor on Friday.`, kind: "decision", project: projName },
+  }, token, 94, mcpSession);
+  check("remember with project tag", (pShare.result?.content?.[0]?.text ?? "").includes("Stored as decision"), pShare.result);
+
+  const pHandoff = await rpc("tools/call", {
+    name: "zaimem_project_handoff",
+    arguments: { project: projName, agent: "frontend-dev", status: "in_progress", summary: `Half of the auth UI ${mkS} is done`, next: "Finish the login form" },
+  }, token, 95, mcpSession);
+  check("project_handoff stores structured note", (pHandoff.result?.content?.[0]?.text ?? "").includes("Handoff stored"), pHandoff.result);
+
+  const brief2 = await rpc("tools/call", {
+    name: "zaimem_project_brief",
+    arguments: { project: projName, agent: "reviewer-1", role: "reviewer" },
+  }, token, 96, mcpSession);
+  const brief2Text: string = brief2.result?.content?.[0]?.text ?? "";
+  check("second brief shows roster + shared memory + handoff", brief2Text.includes("reviewer-1") && brief2Text.includes("backend-dev") && brief2Text.includes(`Team decision ${mkS}`) && brief2Text.includes(`auth UI ${mkS}`), brief2Text.slice(0, 400));
+
+  const noProj = await rpc("tools/call", { name: "zaimem_project_brief", arguments: {} }, token, 97, mcpSession);
+  check("project_brief without project rejected", !!noProj.error && noProj.error.code === -32602, noProj.error);
+
+  const apiProj = await fetch(`${BASE}/api/projects`, {
+    method: "POST", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: `api-${mkS}`, description: "api project", instructions: "Use bun, write tests." }),
+  });
+  const apiProjData = await apiProj.json().catch(() => ({}));
+  check("POST /api/projects creates", apiProj.status === 201 && apiProjData.project?.name === `api-${mkS}`, { status: apiProj.status });
+  const dupProj = await fetch(`${BASE}/api/projects`, {
+    method: "POST", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: `api-${mkS}` }),
+  });
+  check("duplicate project name → 409", dupProj.status === 409);
+  const projFiles = await fetch(`${BASE}/api/projects/${apiProjData.project.id}/files`, {
+    method: "POST", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "spec.md", content: `API spec ${mkS}: vector dim 384, dedupe 0.94.` }),
+  });
+  check("project file attached", projFiles.status === 201, projFiles.status);
+  const projAgents = await fetch(`${BASE}/api/projects/${apiProjData.project.id}/agents`, {
+    method: "POST", headers: { ...h, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "tester-bot", role: "tester" }),
+  });
+  check("project agent added manually", projAgents.status === 201);
+  const projDetail = await (await fetch(`${BASE}/api/projects/${apiProjData.project.id}`, { headers: h })).json();
+  check("project detail aggregates files/agents", projDetail.project?.files?.length === 1 && projDetail.project?.agents?.length === 1 && projDetail.project?.instructions?.includes("bun"));
+  const projPrompt = await (await fetch(`${BASE}/api/projects/${apiProjData.project.id}/prompt`, { headers: h })).json();
+  check("project invite prompt (API)", (projPrompt.prompt ?? "").includes(`api-${mkS}`) && (projPrompt.prompt ?? "").includes("zaimem_project_brief") && (projPrompt.prompt ?? "").includes("spec.md"));
+  const projList = await (await fetch(`${BASE}/api/projects`, { headers: h })).json();
+  check("projects listed with counts", (projList.projects ?? []).length >= 2 && projList.projects.some((p: any) => p.files >= 1 && p.agents >= 1), projList.projects?.slice(0, 3));
+
+  const meetRes = await rpc("tools/call", {
+    name: "zaimem_ingest_meeting",
+    arguments: {
+      title: `Roadmap sync ${mkS}`,
+      transcript: `Alice: We need to decide the Q3 roadmap today. Bob: The search feature must ship by Friday. Alice: Decision ${mkS}: we prioritize search over billing. Bob: Action item: I will write the search spec by Wednesday. Alice: Action item: the team needs to review the vector schema. Bob: We are blocked on the embeddings budget until next week.`,
+      platform: "meet",
+      participants: "Alice, Bob",
+    },
+  }, token, 98, mcpSession);
+  const meetText: string = meetRes.result?.content?.[0]?.text ?? "";
+  const meetMeta = meetRes.result?._meta ?? {};
+  check("meeting ingested with chunks", meetText.includes("ingested") && (meetMeta.chunks ?? 0) >= 1, meetText.slice(0, 200));
+  check("meeting summary stored", meetText.includes("Summary") && meetText.toLowerCase().includes("roadmap"), meetText.slice(0, 300));
+  check("meeting action items extracted + pushed", (meetMeta.action_items ?? 0) >= 1 && meetText.includes("Action items"), meetMeta);
+
+  const meetingsList = await rpc("tools/call", { name: "zaimem_meetings_list", arguments: {} }, token, 99, mcpSession);
+  const meetingsListText: string = meetingsList.result?.content?.[0]?.text ?? "";
+  check("meetings_list shows the meeting", meetingsListText.includes(`Roadmap sync ${mkS}`), meetingsListText.slice(0, 200));
+
+  const meetingAsk = await rpc("tools/call", {
+    name: "zaimem_meeting_search",
+    arguments: { question: `what did we decide about the roadmap ${mkS}?` },
+  }, token, 100, mcpSession);
+  const meetingAskText: string = meetingAsk.result?.content?.[0]?.text ?? "";
+  check("meeting_search finds decisions across meetings", meetingAskText.toLowerCase().includes("relevant excerpt") && meetingAskText.includes(`Roadmap sync ${mkS}`), meetingAskText.slice(0, 260));
+
+  const apiMeet = await (await fetch(`${BASE}/api/meetings`, { headers: h })).json();
+  check("GET /api/meetings lists with summary + actions", (apiMeet.meetings ?? []).some((m: any) => m.title === `Roadmap sync ${mkS}` && m.actionItems?.length >= 1), apiMeet.meetings?.slice(0, 2));
+
+  const calcRes = await rpc("tools/call", { name: "zaimem_calc", arguments: { expression: "(1240 * 3) / 7.5 + 2^3" } }, token, 101, mcpSession);
+  check("calc computes exactly", (calcRes.result?.content?.[0]?.text ?? "").includes("= 504"), calcRes.result);
+  const calcBad = await rpc("tools/call", { name: "zaimem_calc", arguments: { expression: "process.exit(1)" } }, token, 102, mcpSession);
+  check("calc rejects non-arithmetic", !!calcBad.error && calcBad.error.code === -32602, calcBad.error);
+
+  const timeT = await rpc("tools/call", { name: "zaimem_time", arguments: { timezone: "Asia/Tbilisi" } }, token, 103, mcpSession);
+  const timeText: string = timeT.result?.content?.[0]?.text ?? "";
+  check("time returns tz-aware info", timeText.includes("Asia/Tbilisi") && timeText.includes("ISO:"), timeText.slice(0, 160));
+
+  const think1 = await rpc("tools/call", { name: "zaimem_think", arguments: { thought: `The ${mkS} parser needs a two-phase design`, session_id: sessionId } }, token, 104, mcpSession);
+  const think2 = await rpc("tools/call", { name: "zaimem_think", arguments: { thought: "Phase 2: wire the dedupe queue", session_id: sessionId } }, token, 105, mcpSession);
+  const think2Text: string = think2.result?.content?.[0]?.text ?? "";
+  check("think builds a numbered chain", (think1.result?.content?.[0]?.text ?? "").includes("Step 1") && think2Text.includes("Step 2") && think2Text.includes("Phase 2"), think2Text.slice(0, 200));
+
+  const wSearch = await rpc("tools/call", { name: "zaimem_web_search", arguments: { query: "model context protocol", num: 3 } }, token, 106, mcpSession);
+  const wSearchText: string = wSearch.result?.content?.[0]?.text ?? "";
+  check("web_search returns results or graceful error", wSearchText.includes("web result") || wSearchText.includes("unavailable"), wSearchText.slice(0, 140));
+
+  const wFetch = await rpc("tools/call", { name: "zaimem_web_fetch", arguments: { url: "https://modelcontextprotocol.io", max_chars: 3000 } }, token, 107, mcpSession);
+  const wFetchText: string = wFetch.result?.content?.[0]?.text ?? "";
+  check("web_fetch returns page or graceful error", wFetchText.includes("📄") || wFetchText.includes("Fetch failed"), wFetchText.slice(0, 140));
+
+  const hrStatus1 = await rpc("tools/call", { name: "zaimem_headroom", arguments: {} }, token, 108, mcpSession);
+  const hr1Text: string = hrStatus1.result?.content?.[0]?.text ?? "";
+  check("headroom status reports current mode", hr1Text.includes("HEADROOM compression mode") && (hr1Text.includes("ON") || hr1Text.includes("OFF")), hr1Text.slice(0, 160));
+  const hrOn = await rpc("tools/call", { name: "zaimem_headroom", arguments: { enabled: true } }, token, 109, mcpSession);
+  check("headroom toggles ON", (hrOn.result?.content?.[0]?.text ?? "").includes("ON"), hrOn.result);
+  const hrEnh = await rpc("tools/call", {
+    name: "zaimem_enhance_context",
+    arguments: { current_message: `payment gateway api key handling ${mkS}` },
+  }, token, 110, mcpSession);
+  const hrEnhText: string = hrEnh.result?.content?.[0]?.text ?? "";
+  check("enhance_context applies headroom compression", hrEnhText.includes("HEADROOM compression ON"), hrEnhText.slice(0, 200));
+  const hrOff = await rpc("tools/call", { name: "zaimem_headroom", arguments: { enabled: false } }, token, 111, mcpSession);
+  check("headroom toggles OFF", (hrOff.result?.content?.[0]?.text ?? "").includes("OFF"), hrOff.result);
+  const hrStats = await (await fetch(`${BASE}/api/stats`, { headers: h })).json();
+  check("stats counts headroom action", hrStats.byAction?.some((a: any) => a.action === "headroom"), hrStats.byAction?.map((a: any) => a.action));
 
   console.log(`\n${failures === 0 ? "🎉 ALL CHECKS PASSED" : `❌ ${failures} CHECK(S) FAILED`}`);
   process.exit(failures === 0 ? 0 : 1);
