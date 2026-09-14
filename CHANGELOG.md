@@ -2,6 +2,23 @@
 
 All notable changes to ZaiMem are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is semver.
 
+## [1.7.2] — Full security & cybersecurity audit, hardening
+
+### Security — critical fixes
+- **Leaked-PAT scrub (critical)**: two live GitHub PATs hard-coded in e2e scripts since v1.1 were replaced with local dummies; the rescue-import e2e is now env-gated (`ZAIMEM_E2E_PAT` / `ZAIMEM_E2E_REPO`) with 9 hermetic skips — no credentials ship in the repo. *Owner action required: revoke the two historical PATs in GitHub settings; optional history purge after revocation.*
+- **PAT encryption key (critical)**: `ZAIMEM_SECRET` is now generated into `.env` and required; `decryptSecretUpgradable` + `loadPat` transparently re-encrypt legacy rows on load, and the server warns at startup if the secret is unset.
+- **Plaintext token storage (high)**: API tokens are now stored as SHA-256 `tokenHash` (unique index); lazy migration + backfill script converted all existing rows; prompts rewired so tokens are supplied per-request and never read back.
+
+### Security — hardening
+- **Rate limiting (high)**: `/api/auth/init` 60 req / 5 min per IP; MCP endpoint 1200 req / min per token (`src/lib/zaimem/ratelimit.ts`).
+- **JSON-RPC hardening (medium)**: batch requests capped at 25; MCP sessions evicted after 24 h idle (10 k cap); verbose error scrubbing on auth failures.
+- **Security headers (low)**: HSTS, X-Content-Type-Options, Referrer-Policy, X-Frame-Options set in `next.config.ts`.
+- Dependency audit triaged (30 advisories logged at scan time); upgrade roadmap for Next.js / next-auth / sharp documented in the audit report.
+
+### Added
+- **Security audit report tooling** — `scripts/sec-report-body.py`, `sec-report-charts.py`, `sec-report-merge.py` + report assets reproduce the 13-page v1.7.2 audit PDF (severity donut, area chart, findings tables, remediation log).
+- e2e suite remains **150 checks, all green** (141 hard asserts + 9 env-gated live rescue-import checks).
+
 ## [1.7.1] — Skills section: tool packs, Headroom card & one-PAT account rescue
 
 ### Added

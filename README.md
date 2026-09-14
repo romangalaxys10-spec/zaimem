@@ -250,15 +250,20 @@ Stack: **Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · 
 ## Testing
 
 ```bash
-bun scripts/e2e-test.ts          # 46 HTTP checks — auth, MCP tools, dedupe, GitHub guards …
-bun scripts/e2e-github-unit.ts   # 26 engine checks — full sync engine vs mock GitHub API
+npx tsx scripts/e2e-test.ts      # 150 checks — auth, MCP tools & packs, sessions, projects, meetings, dedupe, GitHub guards …
+npx tsx scripts/e2e-github-unit.ts   # 26 engine checks — full sync engine vs mock GitHub API
 ```
+
+> The 9 live rescue-import checks skip hermetically unless `ZAIMEM_E2E_PAT` / `ZAIMEM_E2E_REPO` are set — no credentials are ever hard-coded.
 
 ## Security notes
 
-- Login tokens and API keys are high-entropy random strings; API keys authenticate every MCP call.
-- GitHub PATs are encrypted at rest (AES-256-GCM, scrypt-derived key) and never returned by the API.
-- The SQLite database and `.env` are local-only and excluded from version control.
+- Login tokens are stored as **SHA-256 hashes** — plaintext tokens are never persisted (v1.7.2 migration + backfill).
+- GitHub PATs are encrypted at rest (**AES-256-GCM**, scrypt-derived key from `ZAIMEM_SECRET`) and never returned by the API; legacy rows are transparently re-encrypted on load.
+- **Rate limiting**: auth init 60 req / 5 min per IP; MCP endpoint 1200 req / min per token.
+- **JSON-RPC hardening**: batches capped at 25 requests; MCP sessions evicted after 24 h idle (10 k cap); verbose error scrubbing.
+- **Security headers** (HSTS, X-Content-Type-Options, Referrer-Policy, X-Frame-Options) on every response.
+- The SQLite database and `.env` are local-only and excluded from version control. A full security audit (v1.7.2) is reproduced by `scripts/sec-report-*.py`.
 
 ## Community & links
 

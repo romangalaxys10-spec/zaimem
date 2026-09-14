@@ -65,5 +65,6 @@ server.log
 scripts/shot-*.png
 /examples/
 /_refs/
+/upload/
 # whitelist example env
 !.env.example
