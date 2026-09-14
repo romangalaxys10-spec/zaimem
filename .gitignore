@@ -69,3 +69,6 @@ scripts/shot-*.png
 # whitelist example env
 !.env.example
 db/vercel-bootstrap.db
+prod-server.log
+watchdog.log
+server.log
