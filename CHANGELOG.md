@@ -2,6 +2,21 @@
 
 All notable changes to ZaiMem are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is semver.
 
+## [1.8.3] — Fix Vercel runtime: schema bootstrap + per-instance DB truth
+
+### Fixed
+- **"Unexpected end of JSON input" on token generation (Vercel)**: runtime logs showed `P2021 — table main.User does not exist`. Root cause chain: (a) `output: "standalone"` made the Vercel builder skip the normal file trace, so Prisma's `libquery_engine-*.so.node` never reached the `.func` bundles — standalone is now opt-in via `NEXT_OUTPUT_MODE=standalone` (Dockerfile sets it; Vercel builds clean without it); (b) the lambda's `/tmp` SQLite starts EMPTY on cold start and the build-time `/tmp` is a different machine, so the schema never existed at runtime. `vercel-build.sh` now ships a schema-only `db/vercel-bootstrap.db` (generated fresh from the schema at build time) and `db.ts` copies it into place on cold start when the target file is missing.
+
+### Changed
+- **Scheduler off on Vercel**: the hourly GitHub-backup loop is a long-run-server feature; on ephemeral lambdas it only spammed per-instance errors (`instrumentation.ts` gates on `VERCEL`).
+- **Functional sweep**: `scripts/vercel-smoke.sh` — 19 checks against production, split into HEALTH (stateless, must pass) and db-dep (state flows that need one shared database). Current run: **17 passed · 0 failed · 2 db-dependent**.
+
+### Known limitation (by design of ephemeral infra)
+- Every Vercel lambda instance owns its own `/tmp` database — state written on one instance is invisible to another (and all of it evaporates on cold starts). Health endpoints, auth bootstrap, search, skills, export, stats and all guards are green; multi-request state flows (ingest → search across calls, MCP sessions) stay consistent only within a warm instance. **Set `DATABASE_URL` to any managed Postgres** (Vercel dashboard → Storage → Create Database → name the env var `DATABASE_URL` → connect) and the build auto-switches to `prisma/schema.postgres.prisma` + `db push`, turning every db-dep check hard-green. The Storage provisioning API is not exposed to the current token scope, so this one click is user-side.
+
+### Verified
+- tsc clean; e2e green; production sweep 17/17 health + 0 hard failures; token generation returns a live `zm_…` key.
+
 ## [1.8.2] — Vercel hosting + GitHub auto-sync deploy pipeline
 
 ### Added

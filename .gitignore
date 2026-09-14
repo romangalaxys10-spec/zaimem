@@ -68,3 +68,4 @@ scripts/shot-*.png
 /upload/
 # whitelist example env
 !.env.example
+db/vercel-bootstrap.db

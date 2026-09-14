@@ -13,6 +13,9 @@ FROM oven/bun:1 AS build
 WORKDIR /app
 ENV DATABASE_URL="file:./build.db"
 ENV ZAIMEM_SCHEDULER=off
+# v1.8.3: standalone output is opt-in via NEXT_OUTPUT_MODE so the same
+# next.config stays Vercel-clean (standalone broke Vercel's function trace)
+ENV NEXT_OUTPUT_MODE=standalone
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN bunx prisma generate
