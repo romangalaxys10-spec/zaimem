@@ -8,16 +8,16 @@
 [![MCP](https://img.shields.io/badge/Model%20Context-Protocol-8b5cf6?style=flat-square)](https://modelcontextprotocol.io)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-22c55e?style=flat-square)](https://github.com/romangalaxys10-spec/zaimem/pulls)
 
-[![▶ LIVE DEMO](https://img.shields.io/badge/%E2%96%B6_LIVE_DEMO-zaimem.space--z.ai-8b5cf6?style=for-the-badge&logo=googlechrome&logoColor=white)](https://zaimem.space-z.ai/)
+[![▶ LIVE DEMO](https://img.shields.io/badge/%E2%96%B6_LIVE_DEMO-zaimem.vercel.app-8b5cf6?style=for-the-badge&logo=googlechrome&logoColor=white)](https://zaimem.vercel.app/)
 [![Built with GLM 5.3 Flash](https://img.shields.io/badge/Built_with-GLM_5.3_Flash-8b5cf6?style=for-the-badge)](https://z.ai/subscribe?ic=ROK78RJKNW)
 [![Lead by Roman · Rommark.Dev](https://img.shields.io/badge/Lead_by-Roman_·_Rommark.Dev-f43f5e?style=for-the-badge)](https://rommark.dev)
 [![Telegram Blog](https://img.shields.io/badge/Telegram-Blog-229ed9?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/VibeCodePrompterSystem)
 [![The Claw Blog](https://img.shields.io/badge/The_Claw-Blog-10b981?style=for-the-badge)](https://claw.rommark.dev)
 [![Author of Z-Assist Project](https://img.shields.io/badge/Author_of-Z--Assist_Project-f59e0b?style=for-the-badge)](https://zhelp.space-z.ai/)
 
-<a href="https://zaimem.space-z.ai/"><img src="docs/social-preview.png" alt="ZaiMem — session memory & context enhancer for chat.z.ai — click to open the live demo" width="100%" /></a>
+<a href="https://zaimem.vercel.app/"><img src="docs/social-preview.png" alt="ZaiMem — session memory & context enhancer for chat.z.ai — click to open the live demo" width="100%" /></a>
 
-> 🌐 **[Launch the live demo →](https://zaimem.space-z.ai/)** — no signup: open the app and a private `zm_…` token is generated for you instantly. Paste the magic prompt into any chat.z.ai agent chat and watch the memory, context boost and token savings appear in your dashboard.
+> 🌐 **[Launch the live demo →](https://zaimem.vercel.app/)** — no signup: open the app and a private `zm_…` token is generated for you instantly. Paste the magic prompt into any chat.z.ai agent chat and watch the memory, context boost and token savings appear in your dashboard.
 
 **Session memory & context enhancer for AI agents like [chat.z.ai](https://chat.z.ai)** — an MCP-powered web service that gives any chat.z.ai agent persistent **vector memory**, automatic **context enhancement**, **token saving**, and **smart-skill orchestration** — with every user's data mirrored to their **own private GitHub repo** as a human-readable cloud database.
 
@@ -64,7 +64,7 @@
 
 ## Quick start
 
-> ⚡ Fastest path: **[open the hosted instance](https://zaimem.space-z.ai/)** — nothing to install. The steps below are for running your own copy.
+> ⚡ Fastest path: **[open the hosted instance](https://zaimem.vercel.app/)** — nothing to install. The steps below are for running your own copy.
 
 ### Clone & run locally
 
